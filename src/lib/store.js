@@ -22,17 +22,20 @@ function safeSet(key, value) {
 
 // Supabase settings come from the build (.env / GitHub secrets) or from the
 // in-app Settings page, which saves them in this browser.
+// People often paste the REST endpoint (".../rest/v1/") instead of the project URL.
+const cleanUrl = (url) => String(url).trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
+
 export function getSupabaseConfig() {
   const saved = safeGet(CONFIG_KEY);
   if (saved) {
     try {
       const c = JSON.parse(saved);
-      if (c.url && c.key) return { ...c, source: 'browser' };
+      if (c.url && c.key) return { ...c, url: cleanUrl(c.url), source: 'browser' };
     } catch { /* ignore */ }
   }
   const url = import.meta.env.VITE_SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  if (url && key) return { url, key, source: 'build' };
+  if (url && key) return { url: cleanUrl(url), key: key.trim(), source: 'build' };
   return null;
 }
 
