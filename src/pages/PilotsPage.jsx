@@ -61,7 +61,10 @@ export default function PilotsPage() {
                   <td>{chassis.size}</td>
                   <td>{owned.length}</td>
                   {WEIGHT_CLASSES.map((c) => <td key={c}>{byClass[c] || <span className="muted">0</span>}</td>)}
-                  <td className="small">{(p.prefs?.classes || []).join(', ') || <span className="muted">–</span>}</td>
+                  <td className="small">
+                    {(p.prefs?.classes || []).map((c, i) => `${i + 1}. ${c}`).join(', ') || <span className="muted">–</span>}
+                    {(p.prefs?.wontClasses || []).length > 0 && <div style={{ color: '#ff8a8a' }}>Won't: {p.prefs.wontClasses.join(', ')}</div>}
+                  </td>
                   <td className="small">{upcoming.length ? `${yes}/${upcoming.length} attending` : <span className="muted">–</span>}</td>
                   <td>
                     {isCaptain && (

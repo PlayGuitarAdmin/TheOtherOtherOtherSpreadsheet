@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { WEIGHT_CLASSES, weightClass } from '../data/catalog.js';
+import { WEIGHT_CLASSES, classMatches, weightClass } from '../data/catalog.js';
 import { ClassPill, Field, KindPill, TechLabel } from '../components/ui.jsx';
 import { useData } from '../lib/data.jsx';
 
@@ -17,7 +17,7 @@ export default function MechsPage() {
 
   const f = q.trim().toLowerCase();
   const list = catalog.chassis.filter(
-    (c) => (!wclass || c.wclass === wclass) && (!tech || c.tech === tech) && (!f || c.name.toLowerCase().includes(f) || c.variants.some((v) => v.code.toLowerCase().includes(f))),
+    (c) => classMatches(wclass, c.wclass) && (!tech || c.tech === tech) && (!f || c.name.toLowerCase().includes(f) || c.variants.some((v) => v.code.toLowerCase().includes(f))),
   );
 
   const save = async () => {
@@ -81,7 +81,7 @@ export default function MechsPage() {
       </div>
       <div className="row" style={{ marginBottom: 12 }}>
         <input placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
-        <select value={wclass} onChange={(e) => setWclass(e.target.value)}><option value="">All classes</option>{WEIGHT_CLASSES.map((c) => <option key={c}>{c}</option>)}</select>
+        <select value={wclass} onChange={(e) => setWclass(e.target.value)}><option value="">All classes</option>{WEIGHT_CLASSES.map((c) => <option key={c}>{c}</option>)}<option value="Lights">Lights (Light + Medium)</option><option value="Bigs">Bigs (Heavy + Assault)</option></select>
         <select value={tech} onChange={(e) => setTech(e.target.value)}><option value="">IS + Clan</option><option value="IS">Inner Sphere</option><option value="CL">Clan</option></select>
         <span className="muted small">{list.length} chassis · {list.reduce((n, c) => n + c.variants.length, 0)} variants. Number = pilots who own it.</span>
       </div>

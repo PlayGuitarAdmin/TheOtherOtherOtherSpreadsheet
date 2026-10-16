@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { WEIGHT_CLASSES } from '../data/catalog.js';
+import { CLASS_GROUPS, WEIGHT_CLASSES, classMatches } from '../data/catalog.js';
 import { ClassPill, Field, KindPill, MechChips, TechLabel } from '../components/ui.jsx';
 import { useData } from '../lib/data.jsx';
 import { lookupVariant, parseMechPaste } from '../lib/mechs.js';
@@ -53,7 +53,7 @@ function Hangar({ pilot }) {
 
   const f = filter.trim().toLowerCase();
   const list = catalog.chassis.filter((c) => {
-    if (wclass && c.wclass !== wclass) return false;
+    if (!classMatches(wclass, c.wclass)) return false;
     if (ownedOnly && !ownedChassis.has(c.name)) return false;
     if (f && !c.name.toLowerCase().includes(f) && !c.variants.some((v) => v.code.toLowerCase().includes(f))) return false;
     return true;
@@ -79,6 +79,8 @@ function Hangar({ pilot }) {
         <select value={wclass} onChange={(e) => setWclass(e.target.value)}>
           <option value="">All classes</option>
           {WEIGHT_CLASSES.map((c) => <option key={c}>{c}</option>)}
+          <option value="Lights">Lights (Light + Medium)</option>
+          <option value="Bigs">Bigs (Heavy + Assault)</option>
         </select>
         <label className="row small"><input type="checkbox" checked={ownedOnly} onChange={(e) => setOwnedOnly(e.target.checked)} /> Owned chassis only</label>
         <span className="muted small">Tick the variants you own. Click ★ to mark one mastered / ready.</span>
@@ -233,12 +235,9 @@ function Prefs({ pilot }) {
         <MechChips value={prefs.wont || []} onChange={(v) => set({ wont: v })} />
       </div>
       <div className="card stack">
-        <h2>Preferred weight classes</h2>
-        <div className="row">
-          {WEIGHT_CLASSES.map((c) => (
-            <label key={c} className="row"><input type="checkbox" checked={(prefs.classes || []).includes(c)} onChange={() => toggleIn('classes', c)} /> {c}</label>
-          ))}
-        </div>
+        <h2>Weight classes</h2>
+        <p className="muted small">Rank the classes you like best. Auto-fill prefers higher ranks and never picks a class marked "Won't play".</p>
+        <ClassRanking prefs={prefs} set={set} />
         <h2 style={{ marginTop: 18 }}>Preferred roles</h2>
         <div className="row">
           {ROLES.map((r) => (
@@ -302,6 +301,52 @@ function Profile({ pilot }) {
       <div className="row">
         <button className="primary" onClick={() => actions.update('pilots', pilot.id, { name: name.trim() || pilot.name, notes })}>Save</button>
         {isCaptain && <button className="danger right" onClick={del}>Delete pilot</button>}
+      </div>
+    </div>
+  );
+}
+
+const ORDINAL = ['1st choice', '2nd choice', '3rd choice', '4th choice'];
+
+// prefs.classes is the ranked list (best first); prefs.wontClasses are never picked.
+function ClassRanking({ prefs, set }) {
+  const ranked = prefs.classes || [];
+  const wont = prefs.wontClasses || [];
+  const valueOf = (c) => (wont.includes(c) ? 'wont' : ranked.includes(c) ? String(ranked.indexOf(c)) : '');
+  const choose = (c, v) => {
+    const rest = ranked.filter((x) => x !== c);
+    const nextWont = wont.filter((x) => x !== c);
+    if (v === 'wont') return set({ classes: rest, wontClasses: [...nextWont, c] });
+    if (v === '') return set({ classes: rest, wontClasses: nextWont });
+    rest.splice(Math.min(Number(v), rest.length), 0, c);
+    set({ classes: rest, wontClasses: nextWont });
+  };
+  const preset = (group) => {
+    const classes = CLASS_GROUPS[group];
+    set({ classes: [...classes, ...ranked.filter((c) => !classes.includes(c))], wontClasses: wont.filter((c) => !classes.includes(c)) });
+  };
+  return (
+    <div className="stack">
+      <table style={{ width: 'auto' }}>
+        <tbody>
+          {WEIGHT_CLASSES.map((c) => (
+            <tr key={c}>
+              <td><ClassPill wclass={c} /></td>
+              <td>
+                <select value={valueOf(c)} onChange={(e) => choose(c, e.target.value)}>
+                  <option value="">No preference</option>
+                  {ORDINAL.map((o, i) => <option key={o} value={i}>{o}</option>)}
+                  <option value="wont">Won't play</option>
+                </select>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="row small">
+        <span className="muted">Quick pick:</span>
+        <button className="small" onClick={() => preset('Lights')}>Prefers lights (Light + Medium)</button>
+        <button className="small" onClick={() => preset('Bigs')}>Prefers bigs (Heavy + Assault)</button>
       </div>
     </div>
   );

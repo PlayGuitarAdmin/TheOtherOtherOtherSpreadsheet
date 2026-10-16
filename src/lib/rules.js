@@ -1,4 +1,4 @@
-import { WEIGHT_CLASSES } from '../data/catalog.js';
+import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
 import { slotMech } from './mechs.js';
 
 export function emptyRules() {
@@ -6,6 +6,8 @@ export function emptyRules() {
     minTons: null,
     maxTons: null,
     classes: Object.fromEntries(WEIGHT_CLASSES.map((c) => [c, { min: null, max: null }])),
+    // "Lights" (Light + Medium) and "Bigs" (Heavy + Assault) counted together.
+    groups: Object.fromEntries(Object.keys(CLASS_GROUPS).map((g) => [g, { min: null, max: null }])),
     maxPerChassis: null,
     maxPerVariant: null,
     tech: 'any', // any | IS | CL
@@ -21,6 +23,7 @@ export function normalizeRules(rules) {
   const base = emptyRules();
   const r = { ...base, ...(rules || {}) };
   r.classes = { ...base.classes, ...(rules?.classes || {}) };
+  r.groups = { ...base.groups, ...(rules?.groups || {}) };
   r.bannedChassis = r.bannedChassis || [];
   r.bannedVariants = r.bannedVariants || [];
   return r;
@@ -60,6 +63,14 @@ export function validateLineup(catalog, slots, rulesIn) {
     if (min !== null && st.byClass[c] < min) warnings.push(`Needs at least ${min} ${c} mech${min === 1 ? '' : 's'}, has ${st.byClass[c]}.`);
     if (max !== null && st.byClass[c] > max) warnings.push(`At most ${max} ${c} mech${max === 1 ? '' : 's'} allowed, has ${st.byClass[c]}.`);
   }
+  for (const [g, classes] of Object.entries(CLASS_GROUPS)) {
+    const n = classes.reduce((sum, c) => sum + st.byClass[c], 0);
+    const min = num(rules.groups[g]?.min);
+    const max = num(rules.groups[g]?.max);
+    const label = `${g.toLowerCase()} (${classes.join(' + ')})`;
+    if (min !== null && n < min) warnings.push(`Needs at least ${min} ${label}, has ${n}.`);
+    if (max !== null && n > max) warnings.push(`At most ${max} ${label} allowed, has ${n}.`);
+  }
   const maxC = num(rules.maxPerChassis);
   if (maxC !== null) {
     for (const [ch, n] of Object.entries(st.byChassis)) if (n > maxC) warnings.push(`${n}× ${ch} chassis; the limit is ${maxC}.`);
@@ -90,6 +101,10 @@ export function breaksCap(catalog, slots, mech, rulesIn, remainingAfter) {
   if (maxTons !== null && st.tons + mech.tons + remainingAfter * 20 > maxTons) return true;
   const cmax = num(rules.classes[mech.wclass]?.max);
   if (cmax !== null && st.byClass[mech.wclass] + 1 > cmax) return true;
+  for (const [g, classes] of Object.entries(CLASS_GROUPS)) {
+    const gmax = num(rules.groups[g]?.max);
+    if (gmax !== null && classes.includes(mech.wclass) && classes.reduce((s, c) => s + st.byClass[c], 0) + 1 > gmax) return true;
+  }
   const maxC = num(rules.maxPerChassis);
   if (maxC !== null && (st.byChassis[mech.chassis] || 0) + 1 > maxC) return true;
   const maxV = num(rules.maxPerVariant);

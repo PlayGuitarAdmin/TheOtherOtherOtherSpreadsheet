@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { WEIGHT_CLASSES } from '../data/catalog.js';
+import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
 import { CaptainNote, ChassisSelect, Field, KindPill } from '../components/ui.jsx';
 import { autoFill } from '../lib/autofill.js';
 import { useData } from '../lib/data.jsx';
@@ -114,7 +114,7 @@ function RequestInput({ value, onSave }) {
   return (
     <input
       value={v}
-      placeholder="e.g. Timber Wolf or any assault"
+      placeholder="e.g. Timber Wolf, or bigs"
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== value && onSave(v)}
       onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
@@ -152,7 +152,8 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
   };
 
   const runAutoFill = async () => {
-    const next = autoFill({ catalog, slots, pool, hangars, builds: data.builds, rules });
+    const requests = Object.fromEntries(attendance.map((a) => [a.pilot_id, a.request]));
+    const next = autoFill({ catalog, slots, pool, hangars, builds: data.builds, rules, requests });
     const added = next.filter((s, i) => s.pilotId && !slots[i].pilotId).length;
     await save(next);
     notify(added ? `Auto-fill placed ${added} pilot${added === 1 ? '' : 's'}. Check and adjust as needed.` : 'Auto-fill found nobody to place (no attending pilots with legal mechs).');
@@ -182,6 +183,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
       else if (m.code && !owned.some((o) => o.code === m.code)) flags.push(`doesn't own ${m.code}`);
       const wont = p.prefs?.wont || [];
       if (wont.includes(m.chassis) || (m.code && wont.includes(m.code))) flags.push("marked this mech as won't play");
+      if ((p.prefs?.wontClasses || []).includes(m.wclass)) flags.push(`won't play ${m.wclass} mechs`);
     }
     const dup = slots.filter((x) => x.pilotId === s.pilotId).length > 1;
     if (dup) flags.push('assigned twice in this drop');
@@ -258,6 +260,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
             </div>
             <div className="row" style={{ marginTop: 10 }}>
               {WEIGHT_CLASSES.map((c) => <span key={c} className={`pill ${c}`}>{st.byClass[c]} {c}</span>)}
+              {Object.entries(CLASS_GROUPS).map(([g, cs]) => <span key={g} className="pill">{cs.reduce((n, c) => n + st.byClass[c], 0)} {g.toLowerCase()}</span>)}
             </div>
             <div style={{ marginTop: 12 }}>
               {warnings.length ? (

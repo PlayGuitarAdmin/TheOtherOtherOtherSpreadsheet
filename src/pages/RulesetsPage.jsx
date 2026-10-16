@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { WEIGHT_CLASSES } from '../data/catalog.js';
+import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
 import { CaptainNote, Field, MechChips, NumInput } from '../components/ui.jsx';
 import { useData } from '../lib/data.jsx';
 import { emptyRules, normalizeRules } from '../lib/rules.js';
@@ -43,6 +43,7 @@ function RulesetEditor({ ruleset, onCopy, onDeleted }) {
   const dis = !isCaptain;
   const set = (patch) => setRules({ ...rules, ...patch });
   const setClass = (c, k, v) => set({ classes: { ...rules.classes, [c]: { ...rules.classes[c], [k]: v } } });
+  const setGroup = (g, k, v) => set({ groups: { ...rules.groups, [g]: { ...rules.groups[g], [k]: v } } });
   const usedBy = data.events.filter((e) => e.ruleset_id === ruleset.id);
   const dirty = name !== ruleset.name || JSON.stringify(rules) !== JSON.stringify(normalizeRules(ruleset.rules));
 
@@ -75,6 +76,13 @@ function RulesetEditor({ ruleset, onCopy, onDeleted }) {
                   <td>{c}</td>
                   <td><NumInput value={rules.classes[c].min} disabled={dis} onChange={(v) => setClass(c, 'min', v)} /></td>
                   <td><NumInput value={rules.classes[c].max} disabled={dis} onChange={(v) => setClass(c, 'max', v)} /></td>
+                </tr>
+              ))}
+              {Object.entries(CLASS_GROUPS).map(([g, cs]) => (
+                <tr key={g}>
+                  <td>{g} <span className="muted small">({cs.join(' + ')})</span></td>
+                  <td><NumInput value={rules.groups[g].min} disabled={dis} onChange={(v) => setGroup(g, 'min', v)} /></td>
+                  <td><NumInput value={rules.groups[g].max} disabled={dis} onChange={(v) => setGroup(g, 'max', v)} /></td>
                 </tr>
               ))}
             </tbody>

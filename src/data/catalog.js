@@ -31,3 +31,29 @@ export const DEFAULT_MAPS = [
   'Mining Collective', 'Polar Highlands', 'River City', 'Rubellite Oasis', 'Solaris City',
   'Terra Therma', 'Tourmaline Desert', 'Vitric Forge', 'Viridian Bog',
 ];
+
+// Team shorthand: "lights" = Light + Medium, "bigs" / "heavies" = Heavy + Assault.
+export const CLASS_GROUPS = { Lights: ['Light', 'Medium'], Bigs: ['Heavy', 'Assault'] };
+
+const CLASS_WORDS = [
+  [/\blights\b/, CLASS_GROUPS.Lights],
+  [/\b(bigs|heavies)\b/, CLASS_GROUPS.Bigs],
+  [/\blight\b/, ['Light']],
+  [/\bmediums?\b/, ['Medium']],
+  [/\bheavy\b/, ['Heavy']],
+  [/\bassaults?\b/, ['Assault']],
+];
+
+// Weight classes mentioned in free text such as "any of the bigs" or "lights please".
+export function classesInText(text) {
+  const t = String(text || '').toLowerCase();
+  const out = new Set();
+  for (const [re, classes] of CLASS_WORDS) if (re.test(t)) classes.forEach((c) => out.add(c));
+  return [...out];
+}
+
+// True if a class filter value ("Heavy", "Bigs", "Lights" or "") includes this weight class.
+export function classMatches(filter, wclass) {
+  if (!filter) return true;
+  return CLASS_GROUPS[filter] ? CLASS_GROUPS[filter].includes(wclass) : filter === wclass;
+}

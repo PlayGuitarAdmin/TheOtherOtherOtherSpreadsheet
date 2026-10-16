@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILTIN_VARIANTS } from '../src/data/catalog.js';
+import { BUILTIN_VARIANTS, classesInText } from '../src/data/catalog.js';
 import { autoFill } from '../src/lib/autofill.js';
 import { buildCatalog, lookupVariant, parseMechPaste } from '../src/lib/mechs.js';
 import { emptyRules, validateLineup } from '../src/lib/rules.js';
@@ -97,5 +97,33 @@ describe('auto-fill', () => {
     expect(out.every((s) => s.pilotId)).toBe(true);
     expect(validateLineup(catalog, out, rules), JSON.stringify(out)).toEqual([]);
     expect(out.find((s) => s.pilotId === 'b').chassis).toBe('Mad Dog');
+  });
+});
+
+describe('weight class shorthand and preferences', () => {
+  it('reads lights / bigs / heavies', () => {
+    expect(classesInText('lights please')).toEqual(['Light', 'Medium']);
+    expect(classesInText('any of the bigs')).toEqual(['Heavy', 'Assault']);
+    expect(classesInText('Heavies')).toEqual(['Heavy', 'Assault']);
+    expect(classesInText('a light')).toEqual(['Light']);
+    expect(classesInText('Timber Wolf')).toEqual([]);
+  });
+
+  it('applies lights / bigs limits in rulesets', () => {
+    const rules = emptyRules();
+    rules.groups.Bigs = { min: null, max: 1 };
+    rules.groups.Lights = { min: 1, max: null };
+    const w = validateLineup(catalog, [slot('TBR-PRIME'), slot('DWF-PRIME')], rules);
+    expect(w).toContain('At most 1 bigs (Heavy + Assault) allowed, has 2.');
+    expect(w).toContain('Needs at least 1 lights (Light + Medium), has 0.');
+  });
+
+  it('auto-fill follows ranked classes, won\'t-play classes and event requests', () => {
+    const hangars = { a: [{ variant: 'DWF-PRIME' }, { variant: 'ACH-PRIME' }, { variant: 'NVA-PRIME' }] };
+    const run = (prefs, requests = {}) =>
+      autoFill({ catalog, slots: [{ pilotId: null }], pool: [{ id: 'a', prefs }], hangars, builds: [], rules: emptyRules(), requests })[0].chassis;
+    expect(run({ classes: ['Medium', 'Assault'] })).toBe('Nova');
+    expect(run({ classes: ['Assault'], wontClasses: ['Assault'] })).not.toBe('Dire Wolf');
+    expect(run({ classes: ['Light'] }, { a: 'bigs tonight' })).toBe('Dire Wolf');
   });
 });

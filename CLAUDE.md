@@ -45,7 +45,7 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
 - `supabase/schema.sql`: tables, RLS and seed data. Changing table columns means updating this and the code together.
 
 Data shape notes: `drops.slots` is a jsonb array of `{pilotId, chassis, variant, buildId, lance}`; `pilots.prefs` is
-`{favorites[], wont[], classes[], roles[]}`; `rulesets.rules` matches `emptyRules()`.
+`{favorites[], wont[], classes[] (ranked, best first), wontClasses[], roles[]}`; `rulesets.rules` matches `emptyRules()`.
 
 ## Permissions model (RLS)
 
@@ -70,6 +70,9 @@ builds, and delete pilots. The UI hides captain controls via `isCaptain`; RLS en
 - History: win/loss per drop, with stats by pilot, chassis and map.
 - Theme from the-aces.com: dark teal, amber `#ffaa00`, cyan `#00e5ff`, red `#c40000`; Play and Open Sans fonts. Variables are at the top of `src/styles.css`.
 - Lances are an optional, future-planning field.
+- Team shorthand: **"lights" = Light + Medium**, **"bigs"/"heavies" = Heavy + Assault** (`CLASS_GROUPS` and `classesInText` in
+  `src/data/catalog.js`). Used in class filters, ruleset group min/max (`rules.groups`), lineup totals, and auto-fill
+  reading the per-event "wants to pilot" note.
 
 ## Setup status (2026-10-16)
 
