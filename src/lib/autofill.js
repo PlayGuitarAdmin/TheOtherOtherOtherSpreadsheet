@@ -17,14 +17,13 @@ function variantAllowed(rules, v) {
   return true;
 }
 
-// Which of a pilot's variants (all of one chassis) to bring: a favourite, then mastered, then a non-hero.
+// Which of a pilot's variants (all of one chassis) to bring: a favourite, then a non-hero.
 export function pickVariant(prefs, mine) {
   if (!mine.length) return null;
   return [...mine].sort((a, b) => {
     const fa = indexIn(prefs?.favorites, a), fb = indexIn(prefs?.favorites, b);
     if ((fa >= 0) !== (fb >= 0)) return fa >= 0 ? -1 : 1;
     if (fa !== fb) return fa - fb;
-    if (!!a.mastered !== !!b.mastered) return a.mastered ? -1 : 1;
     return (a.kind === 'hero') - (b.kind === 'hero');
   })[0].code;
 }
@@ -48,8 +47,8 @@ export function pilotFit({ catalog, pilot, chassis, slotVariant, owned, rules, r
   if (!mine.length) return null;
 
   let score = 0;
-  const favChassis = (prefs.favorites || []).findIndex((f) => f === chassis || mine.some((v) => v.code === f));
-  if (favChassis >= 0) score += 50 - favChassis * 5;
+  // Favourites are a flat bonus; their order doesn't matter.
+  if ((prefs.favorites || []).some((f) => f === chassis || mine.some((v) => v.code === f))) score += 50;
   const rank = (prefs.classes || []).indexOf(c.wclass);
   if (rank >= 0) score += 20 - rank * 6;
   const req = String(request || '').toLowerCase();
@@ -57,13 +56,12 @@ export function pilotFit({ catalog, pilot, chassis, slotVariant, owned, rules, r
     if (req.includes(chassis.toLowerCase()) || mine.some((v) => req.includes(v.code.toLowerCase()))) score += 60;
     else if (classesInText(req).includes(c.wclass)) score += 30;
   }
-  if (mine.some((v) => v.mastered)) score += 10;
 
   const variant = slotVariant || pickVariant(prefs, mine);
   return { score, variant };
 }
 
-export function assignPilots({ catalog, slots, pool, hangars, builds = [], rules: rulesIn, requests = {} }) {
+export function assignPilots({ catalog, slots, pool, hangars, builds = [], rules: rulesIn, requests = {}, random = Math.random }) {
   const rules = normalizeRules(rulesIn);
   const result = slots.map((s) => ({ ...s }));
   const ownedBy = {};
@@ -87,10 +85,13 @@ export function assignPilots({ catalog, slots, pool, hangars, builds = [], rules
   });
 
   // Best overall lineup, not slot by slot: fill as many slots as possible, then maximise the total preference score.
+  // Ties are broken by a random pilot order, drawn fresh on each run. The tie-breaker adds under 1 point in total,
+  // so it never outweighs a real preference.
   const n = Math.max(open.length, free.length);
+  const tie = free.map(() => (random() * 0.9) / (open.length || 1));
   const cost = Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => {
     const f = fit[r]?.[c];
-    return f ? -(1000 + f.score) : 0;
+    return f ? -(1000 + f.score + tie[c]) : 0;
   }));
   const match = hungarian(cost);
 

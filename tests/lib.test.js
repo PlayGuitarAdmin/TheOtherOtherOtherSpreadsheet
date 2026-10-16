@@ -102,7 +102,7 @@ describe('auto-assign pilots', () => {
     expect(out[0]).toMatchObject({ pilotId: 'a', chassis: 'Dire Wolf', variant: 'DWF-PRIME' });
     expect(out[1]).toEqual(slots[1]);
     expect(out[2]).toEqual(slots[2]);
-    expect(out[3]).toMatchObject({ pilotId: 'b', chassis: 'Timber Wolf', variant: 'TBR-S' });
+    expect(out[3]).toMatchObject({ pilotId: 'b', chassis: 'Timber Wolf', variant: 'TBR-PRIME' });
     expect(unfilled).toEqual([]);
   });
 
@@ -127,7 +127,17 @@ describe('auto-assign pilots', () => {
 
   it('treats a variant that only followed an earlier pilot as open', () => {
     const { slots: out } = run([{ pilotId: null, chassis: 'Timber Wolf', variant: 'TBR-C', autoVariant: true }]);
-    expect(out[0]).toMatchObject({ pilotId: 'b', variant: 'TBR-S' });
+    expect(out[0]).toMatchObject({ pilotId: 'b', variant: 'TBR-PRIME' });
+  });
+
+  it('gives favourites a flat bonus and breaks exact ties at random', () => {
+    const h = { x: [{ variant: 'DWF-PRIME' }], y: [{ variant: 'DWF-A' }] };
+    const p = [{ id: 'x', prefs: { favorites: ['Atlas', 'Timber Wolf', 'Dire Wolf'] } }, { id: 'y', prefs: { favorites: ['Dire Wolf'] } }];
+    const pick = (r) => assignPilots({ catalog, slots: [{ chassis: 'Dire Wolf' }], pool: p, hangars: h, rules: emptyRules(), random: r }).slots[0].pilotId;
+    let k = 0;
+    expect(pick(() => [0.9, 0.1][k++ % 2])).toBe('x');
+    k = 0;
+    expect(pick(() => [0.1, 0.9][k++ % 2])).toBe('y');
   });
 
   it('gives a contested chassis to the pilot who fits it better', () => {

@@ -40,7 +40,9 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
   (finds variant codes plus hyphen-less hero names anywhere in pasted mwomercs.com text).
 - `src/lib/rules.js`: ruleset model and `validateLineup` (warnings only, never blocks). `breaksCap` is currently unused.
 - `src/lib/autofill.js`: `assignPilots` puts pool pilots into slots that have a chassis and no pilot. It solves the whole drop at once
-  (Hungarian algorithm: most slots filled, then highest total score from favourites, class ranking, the event request and mastery);
+  (Hungarian algorithm: most slots filled, then highest total score). Score (Sean, 2026-10-16): favourite chassis/variant flat +50
+  (order ignored), class rank 1st–4th +20/14/8/2, event note naming the chassis/variant +60 or its class +30. Mastery is not scored.
+  Exact ties are broken by a random pilot order drawn fresh on each run (`random` option; tests pass a fixed one);
   slot-by-slot greedy gave a bigs pilot a light while a better-suited pilot sat out. It never changes a chassis, pilot, variant or build already set.
   Variants/builds it (or a pilot pick) fills get `autoVariant`/`autoBuild: true` so they follow the pilot if the pilot changes.
 - `src/lib/export.js`: Discord text (code block) and CSV.
@@ -66,7 +68,7 @@ builds, and delete pilots. The UI hides captain controls via `isCaptain`; RLS en
 - Rules: min/max tonnage, min/max per weight class, max per chassis and per variant, tech base, banned chassis/variants.
   Breaking a rule shows a **warning**, never a block. Rulesets are user-defined and saved; there are no presets.
 - Attendance is per event date (Yes/Maybe/No). **"Maybe" pilots are hidden** from pools. Assigned pilots leave the pool.
-- Pilot prefs: ranked favourites, "won't play", preferred classes and roles, plus an optional per-event "wants to pilot" note.
+- Pilot prefs: favourites (unranked), "won't play", preferred classes and roles, plus an optional per-event "wants to pilot" note.
 - **Chassis first, then pilots** (Sean, 2026-10-16): captains pick and keep the chassis list for each drop by hand, then pilots are
   assigned to those chassis ("Auto-assign pilots" or by hand). Choosing a pilot never clears the chassis. Everything stays doable by hand.
   Drop lineups sort by chassis tonnage, then chassis name (`sortSlots`, applied on save and in exports). Columns: Chassis, Variant,

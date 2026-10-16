@@ -237,9 +237,9 @@ function Prefs({ pilot }) {
   return (
     <div className="grid2">
       <div className="card stack">
-        <h2>Favourite mechs (ranked)</h2>
-        <p className="muted small">Chassis or exact variants, best first. Auto-assign tries these first.</p>
-        <MechChips value={prefs.favorites || []} onChange={(v) => set({ favorites: v })} ordered />
+        <h2>Favourite mechs</h2>
+        <p className="muted small">Chassis or exact variants, in any order. Auto-assign gives each favourite the same bonus.</p>
+        <MechChips value={prefs.favorites || []} onChange={(v) => set({ favorites: v })} />
         <h2 style={{ marginTop: 18 }}>Won't play</h2>
         <p className="muted small">Auto-assign never puts you in these, and captains get a warning if they do.</p>
         <MechChips value={prefs.wont || []} onChange={(v) => set({ wont: v })} />
