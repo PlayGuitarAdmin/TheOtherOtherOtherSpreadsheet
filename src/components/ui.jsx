@@ -127,3 +127,15 @@ export function NumInput({ value, onChange, disabled, placeholder = '–' }) {
     />
   );
 }
+
+// Shown wherever templates are used until the drop_templates table exists in Supabase.
+export function TemplatesMissing() {
+  const { missingTables } = useData();
+  if (!missingTables.includes('drop_templates')) return null;
+  return (
+    <div className="warnings" style={{ marginBottom: 12 }}>
+      Drop templates need a new database table. Run <code>supabase/drop_templates.sql</code> from the repo in
+      Supabase → SQL Editor → New query, then reload this page.
+    </div>
+  );
+}

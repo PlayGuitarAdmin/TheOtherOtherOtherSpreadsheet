@@ -3,8 +3,12 @@ import { DEFAULT_MAPS } from '../data/catalog.js';
 import { emptyRules } from './rules.js';
 
 export const TABLES = [
-  'pilots', 'pilot_mechs', 'custom_mechs', 'builds', 'maps', 'rulesets', 'events', 'attendance', 'drops',
+  'pilots', 'pilot_mechs', 'custom_mechs', 'builds', 'maps', 'rulesets', 'events', 'attendance', 'drops', 'drop_templates',
 ];
+
+// Tables added after the first setup. Until their SQL has been run, the app loads them as empty and lists them in
+// `backend.missingTables` so the UI can say what to run.
+const OPTIONAL_TABLES = new Set(['drop_templates']);
 
 const CONFIG_KEY = 'dropdeck-supabase';
 const LOCAL_KEY = 'dropdeck-local-data';
@@ -48,7 +52,7 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Ma
 function seedLocal() {
   const now = new Date().toISOString();
   return {
-    pilots: [], pilot_mechs: [], custom_mechs: [], builds: [], events: [], attendance: [], drops: [],
+    pilots: [], pilot_mechs: [], custom_mechs: [], builds: [], events: [], attendance: [], drops: [], drop_templates: [],
     maps: DEFAULT_MAPS.map((name) => ({ id: uid(), name, active: true, created_at: now })),
     rulesets: [{ id: uid(), name: 'Open (no limits)', rules: emptyRules(), created_at: now }],
   };
@@ -74,6 +78,7 @@ function localBackend() {
 
   return {
     kind: 'local',
+    missingTables: [],
     async loadAll() {
       const d = read();
       return Object.fromEntries(TABLES.map((t) => [t, d[t] || []]));
@@ -168,11 +173,18 @@ function supabaseBackend(cfg) {
     }
   }
 
-  return {
+  const backend = {
     kind: 'supabase',
     client: sb,
+    missingTables: [],
     async loadAll() {
-      const results = await Promise.all(TABLES.map((t) => selectAll(t)));
+      const missing = [];
+      const results = await Promise.all(TABLES.map((t) => selectAll(t).catch((e) => {
+        if (!OPTIONAL_TABLES.has(t)) throw e;
+        missing.push(t);
+        return [];
+      })));
+      backend.missingTables = missing;
       return Object.fromEntries(TABLES.map((t, i) => [t, results[i]]));
     },
     async insert(table, row) {
@@ -233,6 +245,7 @@ function supabaseBackend(cfg) {
       },
     },
   };
+  return backend;
 }
 
 export function createBackend() {

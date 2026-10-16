@@ -7,7 +7,7 @@
 --     their names/preferences; edit hangars, attendance, personal builds; add
 --     missing mechs.
 --   Captains (signed-in users): everything, including events, drops/lineups,
---     rulesets, maps, official builds and deleting pilots.
+--     rulesets, maps, drop templates, official builds and deleting pilots.
 
 create table pilots (
   id uuid primary key default gen_random_uuid(),
@@ -96,6 +96,18 @@ create table drops (
   slots jsonb not null default '[]'::jsonb
 );
 
+-- A planned drop saved per ruleset, imported into events with that ruleset. Slots hold no pilots.
+create table drop_templates (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name text not null,
+  ruleset_id uuid references rulesets(id) on delete set null,
+  team_size integer not null default 12 check (team_size between 1 and 12),
+  map_id uuid references maps(id) on delete set null,
+  notes text default '',
+  slots jsonb not null default '[]'::jsonb
+);
+
 -- Row level security ---------------------------------------------------------
 alter table pilots enable row level security;
 alter table pilot_mechs enable row level security;
@@ -106,6 +118,7 @@ alter table rulesets enable row level security;
 alter table events enable row level security;
 alter table attendance enable row level security;
 alter table drops enable row level security;
+alter table drop_templates enable row level security;
 
 -- Everyone can read everything.
 create policy "read all" on pilots for select to anon, authenticated using (true);
@@ -117,6 +130,7 @@ create policy "read all" on rulesets for select to anon, authenticated using (tr
 create policy "read all" on events for select to anon, authenticated using (true);
 create policy "read all" on attendance for select to anon, authenticated using (true);
 create policy "read all" on drops for select to anon, authenticated using (true);
+create policy "read all" on drop_templates for select to anon, authenticated using (true);
 
 -- Pilot-side data: anyone can write.
 create policy "anyone adds pilots" on pilots for insert to anon, authenticated with check (true);
@@ -138,10 +152,11 @@ create policy "captains edit maps" on maps for all to authenticated using (true)
 create policy "captains edit rulesets" on rulesets for all to authenticated using (true) with check (true);
 create policy "captains edit events" on events for all to authenticated using (true) with check (true);
 create policy "captains edit drops" on drops for all to authenticated using (true) with check (true);
+create policy "captains edit drop templates" on drop_templates for all to authenticated using (true) with check (true);
 
 -- Live updates for everyone who has the app open.
 alter publication supabase_realtime add table
-  pilots, pilot_mechs, custom_mechs, builds, maps, rulesets, events, attendance, drops;
+  pilots, pilot_mechs, custom_mechs, builds, maps, rulesets, events, attendance, drops, drop_templates;
 
 -- Starting data -------------------------------------------------------------
 insert into maps (name) values

@@ -108,6 +108,7 @@ tr:hover td { background: #122b31; }
 
 .lineup { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
 .slot { display: grid; grid-template-columns: 28px 56px 1.4fr 1.1fr 92px 1fr 1.1fr 24px; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.slot.tpl { grid-template-columns: 28px 56px 1.4fr 1.1fr 92px 1.6fr 24px; }
 .slot select, .slot input { width: 100%; }
 .slot .n { color: var(--muted); text-align: right; }
 .slot.flag { background: linear-gradient(90deg, rgba(224, 160, 48, 0.12), transparent); }

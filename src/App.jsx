@@ -7,6 +7,7 @@ import PilotPage from './pages/PilotPage.jsx';
 import BuildsPage from './pages/BuildsPage.jsx';
 import MechsPage from './pages/MechsPage.jsx';
 import RulesetsPage from './pages/RulesetsPage.jsx';
+import TemplatesPage from './pages/TemplatesPage.jsx';
 import MapsPage from './pages/MapsPage.jsx';
 import HistoryPage from './pages/HistoryPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
@@ -28,6 +29,7 @@ const NAV = [
   ['pilots', 'Pilots & Hangars'],
   ['builds', 'Builds'],
   ['mechs', 'Mech Catalog'],
+  ['templates', 'Drop Templates'],
   ['rulesets', 'Rulesets'],
   ['maps', 'Maps'],
   ['history', 'History & Stats'],
@@ -44,6 +46,7 @@ export default function App() {
   else if (section === 'pilots') page = id ? <PilotPage id={id} /> : <PilotsPage />;
   else if (section === 'builds') page = <BuildsPage />;
   else if (section === 'mechs') page = <MechsPage />;
+  else if (section === 'templates') page = <TemplatesPage id={id} />;
   else if (section === 'rulesets') page = <RulesetsPage />;
   else if (section === 'maps') page = <MapsPage />;
   else if (section === 'history') page = <HistoryPage />;

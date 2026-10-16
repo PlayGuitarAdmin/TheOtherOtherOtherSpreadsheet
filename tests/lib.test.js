@@ -4,6 +4,7 @@ import { assignPilots, dropsPlayed } from '../src/lib/autofill.js';
 import { buildCatalog, lookupVariant, parseMechPaste, sortSlots } from '../src/lib/mechs.js';
 import { grimBuildsFor, indexGrimBuilds, parseGrimMechs } from '../src/lib/grimmechs.js';
 import { emptyRules, validateLineup } from '../src/lib/rules.js';
+import { dropFromTemplate, slotsForSize, templateSlots, templatesForEvent, templateSummary } from '../src/lib/templates.js';
 
 const catalog = buildCatalog();
 const slot = (variant, pilotId = 'p') => ({ pilotId, variant, chassis: lookupVariant(catalog, variant)?.chassis });
@@ -243,5 +244,35 @@ describe('GrimMechs builds', () => {
     expect(grimBuildsFor(idx, 'Timber Wolf', 'TBR-C').map((b) => b.id)).toEqual(['3']);
     expect(grimBuildsFor(idx, 'Ebon Jaguar', 'EBJ-A')).toHaveLength(1);
     expect(grimBuildsFor(idx, null, null)).toEqual([]);
+  });
+});
+
+describe('drop templates', () => {
+  const slots = [
+    { pilotId: 'p1', chassis: 'Atlas', variant: 'AS7-D', buildId: 'b1', grim: null, lance: 'A', autoVariant: true },
+    { pilotId: 'p2', chassis: 'Timber Wolf', variant: null, buildId: null, grim: { id: 'g1', loadout: 'LRM' }, lance: '' },
+  ];
+  it('drops pilots and stray flags but keeps chassis, variant and builds', () => {
+    const t = templateSlots(slots);
+    expect(t.every((s) => s.pilotId === null)).toBe(true);
+    expect(t[0]).toEqual({ pilotId: null, chassis: 'Atlas', variant: 'AS7-D', buildId: 'b1', grim: null, lance: 'A' });
+    expect(t[1].grim).toEqual({ id: 'g1', loadout: 'LRM' });
+  });
+  it('resizes to the event team size', () => {
+    expect(slotsForSize(slots, 1).map((s) => s.chassis)).toEqual(['Atlas']);
+    const big = slotsForSize(slots, 4);
+    expect(big).toHaveLength(4);
+    expect(big[3]).toMatchObject({ pilotId: null, chassis: null });
+  });
+  it('matches templates to events by ruleset and builds a drop', () => {
+    const templates = [{ id: 't1', ruleset_id: 'r1' }, { id: 't2', ruleset_id: 'r2' }, { id: 't3', ruleset_id: null }];
+    expect(templatesForEvent(templates, { ruleset_id: 'r1' }).map((t) => t.id)).toEqual(['t1']);
+    expect(templatesForEvent(templates, { ruleset_id: null }).map((t) => t.id)).toEqual(['t3']);
+    const event = { id: 'e1', team_size: 2, ruleset_id: 'r1' };
+    const d = dropFromTemplate({ map_id: 'm1', slots, notes: 'push' }, event, 3, new Set(['m1']));
+    expect(d).toMatchObject({ event_id: 'e1', map_id: 'm1', position: 3, result: null, notes: 'push' });
+    expect(d.slots.map((s) => s.pilotId)).toEqual([null, null]);
+    expect(dropFromTemplate({ map_id: 'gone', slots }, event, 0, new Set()).map_id).toBe(null);
+    expect(templateSummary({ slots: [...slots, { chassis: 'Atlas' }, {}] })).toBe('2× Atlas, Timber Wolf, 1 open');
   });
 });

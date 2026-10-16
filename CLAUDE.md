@@ -58,6 +58,12 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
   Drops' Build column (Sean, 2026-10-16) shows the GrimMechs "Loadout" text linked to its "Build" link; team builds are still
   pickable there too. Picking a Grim build for one variant sets the slot's variant if it had none; changing to a variant the build
   doesn't fit clears it. GitHub disables scheduled workflows after 60 days without repo activity; re-enable in the Actions tab.
+- `src/lib/templates.js` + `src/pages/TemplatesPage.jsx` (Sean, 2026-10-16): **drop templates**, a planned drop (name, ruleset,
+  team size, map, notes, slots with chassis/variant/build/grim/lance and never pilots) in the `drop_templates` table. Listed by ruleset on
+  the Drop Templates page (`#/templates`, `#/templates/:id` to edit). Captains build one from scratch there or use "Save as template" on any
+  drop; an event's "+ From template" tab imports templates with the same ruleset (or both none) as new pilot-less drops, resized to the
+  event's team size. The table was added after the first setup: `supabase/drop_templates.sql` creates it on an existing database.
+  Until it exists, `store.js` loads it as empty (`OPTIONAL_TABLES`, `backend.missingTables`) and the UI shows what to run.
 - `src/lib/export.js`: Discord text (code block) and CSV. `slotBuild` gives a slot's build label and link (Grim or team build).
 - `src/pages/*`: one screen each, with hash routing in `App.jsx` (`#/events/:id`, `#/pilots/:id`, …).
 - `supabase/schema.sql`: tables, RLS and seed data. Changing table columns means updating this and the code together.
@@ -70,7 +76,7 @@ Data shape notes: `drops.slots` is a jsonb array of `{pilotId, chassis, variant,
 
 Pilots never log in (anon key). Anyone can read everything and can edit pilots, hangars (`pilot_mechs`), attendance,
 personal builds, and add `custom_mechs`. **Captains** are signed-in Supabase users (email+password or magic link;
-sign-ups disabled, accounts created in the dashboard). Only captains can change events, drops, rulesets, maps, official
+sign-ups disabled, accounts created in the dashboard). Only captains can change events, drops, drop templates, rulesets, maps, official
 builds, and delete pilots. The UI hides captain controls via `isCaptain`; RLS enforces the same rules.
 
 ## Sean's decisions (from the Q&A)

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
-import { CaptainNote, ChassisSelect, ClassPill, Field, KindPill } from '../components/ui.jsx';
+import { CaptainNote, ChassisSelect, ClassPill, Field, KindPill, TemplatesMissing } from '../components/ui.jsx';
 import { assignPilots, dropsPlayed, PLAYED_PENALTY } from '../lib/autofill.js';
 import { useData } from '../lib/data.jsx';
 import { discordText, downloadFile, lineupCsvRows, slotBuild, toCsv } from '../lib/export.js';
 import { grimBuildsFor } from '../lib/grimmechs.js';
 import { lookupVariant, slotMech, sortSlots } from '../lib/mechs.js';
 import { lineupStats, validateLineup } from '../lib/rules.js';
+import { dropFromTemplate, templateSlots, templatesForEvent, templateSummary } from '../lib/templates.js';
 import { blankSlots } from './EventsPage.jsx';
 
 export default function EventPage({ id }) {
@@ -28,7 +29,7 @@ export default function EventPage({ id }) {
     setTab(d.id);
   };
 
-  const activeTab = tab === 'attendance' || tab === 'share' || tab === 'settings' || drops.some((d) => d.id === tab) ? tab : 'attendance';
+  const activeTab = ['attendance', 'share', 'settings', 'templates'].includes(tab) || drops.some((d) => d.id === tab) ? tab : 'attendance';
 
   return (
     <div>
@@ -48,13 +49,76 @@ export default function EventPage({ id }) {
           </button>
         ))}
         {isCaptain && <button onClick={addDrop}>+ Add drop</button>}
+        {isCaptain && <button className={activeTab === 'templates' ? 'active' : ''} onClick={() => setTab('templates')}>+ From template</button>}
         <button className={activeTab === 'share' ? 'active' : ''} onClick={() => setTab('share')}>Share / Export</button>
         {isCaptain && <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>Event settings</button>}
       </div>
       {activeTab === 'attendance' && <AttendanceTab event={event} drops={drops} />}
       {activeTab === 'share' && <ShareTab event={event} drops={drops} />}
       {activeTab === 'settings' && <EventSettings event={event} drops={drops} />}
+      {activeTab === 'templates' && <ImportTemplates event={event} drops={drops} onImported={setTab} />}
       {drops.map((d, i) => activeTab === d.id && <DropEditor key={d.id} event={event} drop={d} index={i} drops={drops} onDeleted={() => setTab('attendance')} />)}
+    </div>
+  );
+}
+
+// Import drop templates saved for this event's ruleset as new drops, with no pilots.
+function ImportTemplates({ event, drops, onImported }) {
+  const { data, actions, rulesetsById, mapsById, notify } = useData();
+  const [picked, setPicked] = useState([]);
+  const usable = templatesForEvent(data.drop_templates, event).sort((a, b) => a.name.localeCompare(b.name));
+  const others = data.drop_templates.length - usable.length;
+  const toggle = (tid) => setPicked((p) => (p.includes(tid) ? p.filter((x) => x !== tid) : [...p, tid]));
+
+  const doImport = async () => {
+    // Imported in the order they were ticked.
+    const chosen = picked.map((tid) => usable.find((t) => t.id === tid)).filter(Boolean);
+    const resized = chosen.filter((t) => t.team_size !== event.team_size);
+    if (resized.length && !window.confirm(`${resized.map((t) => `"${t.name}" is ${t.team_size}v${t.team_size}`).join(', ')}; this event is ${event.team_size}v${event.team_size}. Extra slots are dropped and missing ones left open. Import anyway?`)) return;
+    const mapIds = new Set(data.maps.map((m) => m.id));
+    let first = null;
+    for (const [i, t] of chosen.entries()) {
+      const d = await actions.insert('drops', dropFromTemplate(t, event, drops.length + i, mapIds));
+      first ||= d;
+    }
+    setPicked([]);
+    notify(`Added ${chosen.length} drop${chosen.length === 1 ? '' : 's'}. Use Auto-assign pilots on each one.`);
+    if (first) onImported(first.id);
+  };
+
+  return (
+    <div className="card stack" style={{ maxWidth: 900 }}>
+      <TemplatesMissing />
+      <h2 style={{ margin: 0 }}>Add drops from templates</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        Templates saved for <b>{rulesetsById[event.ruleset_id]?.name || 'no ruleset'}</b>. Each one becomes a new drop with its map, chassis,
+        variants and builds, and no pilots. {others > 0 && `${others} template${others === 1 ? ' is' : 's are'} for other rulesets. `}
+        Make and edit templates on the <a href="#/templates">Drop templates</a> page, or with "Save as template" on any drop.
+      </p>
+      {usable.length === 0 ? (
+        <p className="muted">No templates for this ruleset yet.</p>
+      ) : (
+        <table>
+          <thead><tr><th /><th>Template</th><th>Size</th><th>Map</th><th>Chassis</th></tr></thead>
+          <tbody>
+            {usable.map((t) => (
+              <tr key={t.id} onClick={() => toggle(t.id)} style={{ cursor: 'pointer' }}>
+                <td><input type="checkbox" readOnly checked={picked.includes(t.id)} /> {picked.includes(t.id) && <b>{picked.indexOf(t.id) + 1}</b>}</td>
+                <td><b>{t.name}</b></td>
+                <td style={{ color: t.team_size === event.team_size ? undefined : 'var(--warn)' }}>{t.team_size}v{t.team_size}</td>
+                <td>{mapsById[t.map_id]?.name || <span className="muted">TBD</span>}</td>
+                <td className="small">{templateSummary(t)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div className="row">
+        <button className="primary" disabled={!picked.length} onClick={doImport}>
+          Add {picked.length || ''} drop{picked.length === 1 ? '' : 's'}
+        </button>
+        <span className="muted small">Drops are added in the order you tick them.</span>
+      </div>
     </div>
   );
 }
@@ -131,7 +195,7 @@ function ownedMechs(catalog, hangars, pid) {
 }
 
 // Slot edits compose on a local copy so quick changes in a row never overwrite each other with stale data.
-function useSlots(drop, size, save, catalog) {
+export function useSlots(drop, size, save, catalog) {
   const fromDrop = () => sortSlots(catalog, drop.slots?.length ? drop.slots : blankSlots(size));
   const [slots, setSlots] = useState(fromDrop);
   const ref = useRef(slots);
@@ -206,6 +270,17 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
     notify('Copied. Paste it into Discord.');
   };
 
+  const saveTemplate = async () => {
+    const mapName = data.maps.find((m) => m.id === drop.map_id)?.name;
+    const name = window.prompt(`Save this lineup as a template for ${ruleset?.name || 'events with no ruleset'}. Pilots aren't saved.\n\nTemplate name:`, `${event.name} drop ${index + 1}${mapName ? ` (${mapName})` : ''}`);
+    if (!name?.trim()) return;
+    await actions.insert('drop_templates', {
+      name: name.trim(), ruleset_id: event.ruleset_id || null, team_size: event.team_size, map_id: drop.map_id || null,
+      notes: drop.notes || '', slots: templateSlots(slotsRef.current),
+    });
+    notify(`Saved template "${name.trim()}".`);
+  };
+
   const del = async () => {
     if (!window.confirm('Delete this drop and its lineup?')) return;
     await actions.remove('drops', drop.id);
@@ -275,6 +350,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
                 <button onClick={clearPilots}>Clear pilots</button>
                 <button onClick={() => window.confirm('Clear every chassis and pilot in this drop?') && save(blankSlots(event.team_size))}>Clear all</button>
                 <button onClick={copyDiscord}>Copy for Discord</button>
+                <button onClick={saveTemplate} disabled={ctx.missingTables.includes('drop_templates')} title="Save the map, chassis, variants and builds (no pilots) to import into other events with this ruleset">Save as template</button>
                 <button className="danger" onClick={del}>Delete drop</button>
               </div>
             )}
@@ -371,12 +447,39 @@ function playedText(n = 0, index) {
   return n ? `In ${n} of the ${index} earlier drop${index === 1 ? '' : 's'}` : `Hasn't dropped yet (of ${index})`;
 }
 
+// Variant picker; ✓ marks variants the slot's pilot owns.
+export function VariantCell({ slot, owned = [], editable, onPatch }) {
+  const { catalog, grim } = useData();
+  const variantOptions = slot.chassis ? catalog.chassisByName.get(slot.chassis)?.variants || [] : [];
+  const mech = slotMech(catalog, slot);
+  return (
+    <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
+      <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch((s) => {
+        const variant = e.target.value || null;
+        // A GrimMechs build made for other variants no longer fits.
+        const fits = grim.byId.get(s.grim?.id)?.variants;
+        return { variant, ...(variant && fits?.length && !fits.includes(variant) ? { grim: null } : {}) };
+      })}>
+        <option value="">Any variant</option>
+        {variantOptions.map((v) => {
+          const mine = owned.find((m) => m.code === v.code);
+          return (
+            <option key={v.code} value={v.code}>
+              {v.code}{mine ? ' ✓' : ''}{mine?.mastered ? '★' : ''}{v.kind === 'hero' ? ' (hero)' : ''}{v.kind === 'legendary' ? ' (legendary)' : ''}
+            </option>
+          );
+        })}
+      </select>
+      {mech && <KindPill kind={mech.kind} />}
+    </div>
+  );
+}
+
 function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf, played }) {
-  const { catalog, pilotsById, grim } = useData();
+  const { catalog, pilotsById } = useData();
   const pilot = pilotsById[slot.pilotId];
   const owned = slot.pilotId ? ownedBy[slot.pilotId] || [] : [];
 
-  const variantOptions = slot.chassis ? catalog.chassisByName.get(slot.chassis)?.variants || [] : [];
   const mech = slotMech(catalog, slot);
 
   // Pilots who own this chassis come first; anyone else is still pickable by hand.
@@ -394,25 +497,7 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf, 
         disabled={!editable}
         onChange={(chassis) => onPatch(() => ({ chassis, variant: null, buildId: null, grim: null }))}
       />
-      <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-        <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch((s) => {
-          const variant = e.target.value || null;
-          // A GrimMechs build made for other variants no longer fits.
-          const fits = grim.byId.get(s.grim?.id)?.variants;
-          return { variant, ...(variant && fits?.length && !fits.includes(variant) ? { grim: null } : {}) };
-        })}>
-          <option value="">Any variant</option>
-          {variantOptions.map((v) => {
-            const mine = owned.find((m) => m.code === v.code);
-            return (
-              <option key={v.code} value={v.code}>
-                {v.code}{mine ? ' ✓' : ''}{mine?.mastered ? '★' : ''}{v.kind === 'hero' ? ' (hero)' : ''}{v.kind === 'legendary' ? ' (legendary)' : ''}
-              </option>
-            );
-          })}
-        </select>
-        {mech && <KindPill kind={mech.kind} />}
-      </div>
+      <VariantCell slot={slot} owned={owned} editable={editable} onPatch={onPatch} />
       <span className="small" style={{ whiteSpace: 'nowrap' }}>{mech ? <><ClassPill wclass={mech.wclass} /> <span className="muted">{mech.tons}t</span></> : <span className="muted">–</span>}</span>
       <select
         value={slot.pilotId || ''}
@@ -445,7 +530,7 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf, 
 
 // Build column: the GrimMechs "Loadout" text, linked to that build's "Build" link, or one of the team's saved builds.
 // The picked build is copied onto the slot so it still shows if GrimMechs later drops the row.
-function BuildCell({ slot, editable, onPatch }) {
+export function BuildCell({ slot, editable, onPatch }) {
   const { data, grim } = useData();
   const [editing, setEditing] = useState(false);
   const chosen = slotBuild(slot, Object.fromEntries(data.builds.map((b) => [b.id, b])));

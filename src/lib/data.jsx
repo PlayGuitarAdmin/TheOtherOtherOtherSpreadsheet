@@ -12,6 +12,7 @@ export function DataProvider({ children }) {
   const [data, setData] = useState(() => Object.fromEntries(TABLES.map((t) => [t, []])));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [missingTables, setMissingTables] = useState([]);
   const [user, setUser] = useState(null);
   const [toast, setToast] = useState(null);
   const reloadTimer = useRef(null);
@@ -28,6 +29,7 @@ export function DataProvider({ children }) {
   const reload = useCallback(async () => {
     try {
       setData(await backend.loadAll());
+      setMissingTables(backend.missingTables || []);
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -99,6 +101,7 @@ export function DataProvider({ children }) {
       data,
       loading,
       error,
+      missingTables,
       user,
       isCaptain: !!user,
       catalog,
@@ -115,7 +118,7 @@ export function DataProvider({ children }) {
       rulesetsById: byId(data.rulesets),
       eventsById: byId(data.events),
     };
-  }, [backend, data, loading, error, user, catalog, grim, actions, notify, toast, reload]);
+  }, [backend, data, loading, error, missingTables, user, catalog, grim, actions, notify, toast, reload]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
