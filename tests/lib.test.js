@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_VARIANTS, classesInText } from '../src/data/catalog.js';
-import { autoFill } from '../src/lib/autofill.js';
+import { assignPilots } from '../src/lib/autofill.js';
 import { buildCatalog, lookupVariant, parseMechPaste } from '../src/lib/mechs.js';
 import { emptyRules, validateLineup } from '../src/lib/rules.js';
 
@@ -78,25 +78,49 @@ describe('rules', () => {
   });
 });
 
-describe('auto-fill', () => {
-  it('fills slots within caps and honours class minimums and won\'t-play', () => {
-    const rules = { ...emptyRules(), maxTons: 200, maxPerChassis: 1 };
-    rules.classes.Light = { min: 1, max: null };
-    const pool = [
-      { id: 'a', name: 'A', prefs: { favorites: ['Dire Wolf'] } },
-      { id: 'b', name: 'B', prefs: { wont: ['Timber Wolf'] } },
-      { id: 'c', name: 'C', prefs: {} },
+describe('auto-assign pilots', () => {
+  const hangars = {
+    a: [{ variant: 'DWF-PRIME' }, { variant: 'ACH-PRIME' }],
+    b: [{ variant: 'TBR-PRIME' }, { variant: 'TBR-S', mastered: true }, { variant: 'DWF-A' }],
+    c: [{ variant: 'ACH-A' }, { variant: 'TBR-C' }],
+  };
+  const pool = [
+    { id: 'a', prefs: { favorites: ['Dire Wolf'] } },
+    { id: 'b', prefs: {} },
+    { id: 'c', prefs: { wont: ['Timber Wolf'] } },
+  ];
+  const run = (slots, opts = {}) => assignPilots({ catalog, slots, pool, hangars, builds: [], rules: emptyRules(), ...opts });
+
+  it('only fills slots that have a chassis and no pilot, and changes nothing else', () => {
+    const slots = [
+      { pilotId: null, chassis: 'Dire Wolf', variant: null },
+      { pilotId: 'z', chassis: 'Atlas', variant: 'AS7-D', lance: 'Alpha' },
+      { pilotId: null, chassis: null, variant: null },
+      { pilotId: null, chassis: 'Timber Wolf', variant: null },
     ];
-    const hangars = {
-      a: [{ variant: 'DWF-PRIME' }, { variant: 'ACH-PRIME' }],
-      b: [{ variant: 'TBR-PRIME' }, { variant: 'MDD-PRIME' }],
-      c: [{ variant: 'ACH-A' }, { variant: 'KFX-PRIME' }],
-    };
-    const empty = Array.from({ length: 3 }, () => ({ pilotId: null }));
-    const out = autoFill({ catalog, slots: empty, pool, hangars, builds: [], rules });
-    expect(out.every((s) => s.pilotId)).toBe(true);
-    expect(validateLineup(catalog, out, rules), JSON.stringify(out)).toEqual([]);
-    expect(out.find((s) => s.pilotId === 'b').chassis).toBe('Mad Dog');
+    const { slots: out, unfilled } = run(slots);
+    expect(out[0]).toMatchObject({ pilotId: 'a', chassis: 'Dire Wolf', variant: 'DWF-PRIME' });
+    expect(out[1]).toEqual(slots[1]);
+    expect(out[2]).toEqual(slots[2]);
+    expect(out[3]).toMatchObject({ pilotId: 'b', chassis: 'Timber Wolf', variant: 'TBR-S' });
+    expect(unfilled).toEqual([]);
+  });
+
+  it('respects a variant the captain set, won\'t-play, and reports chassis nobody owns', () => {
+    const { slots: out, unfilled } = run([
+      { pilotId: null, chassis: 'Dire Wolf', variant: 'DWF-A' },
+      { pilotId: null, chassis: 'Timber Wolf', variant: 'TBR-C' },
+      { pilotId: null, chassis: 'Atlas', variant: null },
+    ]);
+    expect(out[0].pilotId).toBe('b');
+    expect(out[1].pilotId).toBe(null);
+    expect(unfilled).toEqual([1, 2]);
+  });
+
+  it('gives a contested chassis to the pilot who fits it better', () => {
+    const { slots: out } = run([{ pilotId: null, chassis: 'Arctic Cheetah' }, { pilotId: null, chassis: 'Dire Wolf' }]);
+    expect(out[1].pilotId).toBe('a');
+    expect(out[0].pilotId).toBe('c');
   });
 });
 
@@ -118,10 +142,13 @@ describe('weight class shorthand and preferences', () => {
     expect(w).toContain('Needs at least 1 lights (Light + Medium), has 0.');
   });
 
-  it('auto-fill follows ranked classes, won\'t-play classes and event requests', () => {
+  it('auto-assign follows ranked classes, won\'t-play classes and event requests', () => {
     const hangars = { a: [{ variant: 'DWF-PRIME' }, { variant: 'ACH-PRIME' }, { variant: 'NVA-PRIME' }] };
-    const run = (prefs, requests = {}) =>
-      autoFill({ catalog, slots: [{ pilotId: null }], pool: [{ id: 'a', prefs }], hangars, builds: [], rules: emptyRules(), requests })[0].chassis;
+    const slots = [{ pilotId: null, chassis: 'Dire Wolf' }, { pilotId: null, chassis: 'Nova' }, { pilotId: null, chassis: 'Arctic Cheetah' }];
+    const run = (prefs, requests = {}) => {
+      const out = assignPilots({ catalog, slots, pool: [{ id: 'a', prefs }], hangars, builds: [], rules: emptyRules(), requests }).slots;
+      return out.find((s) => s.pilotId)?.chassis;
+    };
     expect(run({ classes: ['Medium', 'Assault'] })).toBe('Nova');
     expect(run({ classes: ['Assault'], wontClasses: ['Assault'] })).not.toBe('Dire Wolf');
     expect(run({ classes: ['Light'] }, { a: 'bigs tonight' })).toBe('Dire Wolf');

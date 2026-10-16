@@ -63,7 +63,7 @@ setting is saved per browser.
    **Paste from mwomercs.com** to load their mechs.
 3. Captain: set up **Rulesets** for the tournaments you play, then create an **Event**.
 4. Pilots mark attendance on the event (Yes / Maybe / No). Only "Yes" pilots show in the pools.
-5. Captain: add a drop per map, use **Auto-fill** or pick pilots by hand, then **Copy for Discord**.
+5. Captain: add a drop per map, pick a chassis for each slot, then **Auto-assign pilots** or pick them by hand, then **Copy for Discord**.
 
 ## Good to know
 

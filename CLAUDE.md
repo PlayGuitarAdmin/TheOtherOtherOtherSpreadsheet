@@ -17,7 +17,7 @@ React 19 + Vite 8 static site on GitHub Pages, with Supabase (Postgres + auth + 
 ```bash
 npm install
 npm run dev     # offline demo mode unless VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are set (.env.local)
-npm test        # vitest: tests/lib.test.js (catalog, paste parser, rules, auto-fill)
+npm test        # vitest: tests/lib.test.js (catalog, paste parser, rules, auto-assign)
 npm run build
 ```
 
@@ -38,8 +38,10 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
   Team fixes go in the `custom_mechs` table (a matching code overrides the built-in).
 - `src/lib/mechs.js`: `buildCatalog`, `lookupVariant` (handles aliases and suffixes like `AS7-D(F)`), and `parseMechPaste`
   (finds variant codes plus hyphen-less hero names anywhere in pasted mwomercs.com text).
-- `src/lib/rules.js`: ruleset model and `validateLineup` (warnings only, never blocks). `breaksCap` is used by auto-fill.
-- `src/lib/autofill.js`: greedy lineup suggestion. Only fills empty slots.
+- `src/lib/rules.js`: ruleset model and `validateLineup` (warnings only, never blocks). `breaksCap` is currently unused.
+- `src/lib/autofill.js`: `assignPilots` puts pool pilots into slots that have a chassis and no pilot (greedy, fewest candidates first,
+  scored by favourites, class ranking, the event request and mastery). It never changes a chassis, pilot, variant or build already set.
+  Variants/builds it (or a pilot pick) fills get `autoVariant`/`autoBuild: true` so they follow the pilot if the pilot changes.
 - `src/lib/export.js`: Discord text (code block) and CSV.
 - `src/pages/*`: one screen each, with hash routing in `App.jsx` (`#/events/:id`, `#/pilots/:id`, …).
 - `supabase/schema.sql`: tables, RLS and seed data. Changing table columns means updating this and the code together.
@@ -64,14 +66,15 @@ builds, and delete pilots. The UI hides captain controls via `isCaptain`; RLS en
   Breaking a rule shows a **warning**, never a block. Rulesets are user-defined and saved; there are no presets.
 - Attendance is per event date (Yes/Maybe/No). **"Maybe" pilots are hidden** from pools. Assigned pilots leave the pool.
 - Pilot prefs: ranked favourites, "won't play", preferred classes and roles, plus an optional per-event "wants to pilot" note.
-- Auto-fill exists, but everything must stay doable by hand.
+- **Chassis first, then pilots** (Sean, 2026-10-16): captains pick and keep the chassis list for each drop by hand, then pilots are
+  assigned to those chassis ("Auto-assign pilots" or by hand). Choosing a pilot never clears the chassis. Everything stays doable by hand.
 - Builds: name, link, MWO export code, notes and tags; team (official) or personal. Can be imported from their Google Sheet by paste.
 - Output: everyone sees lineups live in the app, Discord copy/paste, and CSV for Google Sheets.
 - History: win/loss per drop, with stats by pilot, chassis and map.
 - Theme from the-aces.com: dark teal, amber `#ffaa00`, cyan `#00e5ff`, red `#c40000`; Play and Open Sans fonts. Variables are at the top of `src/styles.css`.
 - Lances are an optional, future-planning field.
 - Team shorthand: **"lights" = Light + Medium**, **"bigs"/"heavies" = Heavy + Assault** (`CLASS_GROUPS` and `classesInText` in
-  `src/data/catalog.js`). Used in class filters, ruleset group min/max (`rules.groups`), lineup totals, and auto-fill
+  `src/data/catalog.js`). Used in class filters, ruleset group min/max (`rules.groups`), lineup totals, and auto-assign
   reading the per-event "wants to pilot" note.
 
 ## Setup status (2026-10-16)

@@ -15,7 +15,7 @@ which builds to run, and who drops in what on each map, with tournament rules ch
   optional lance names. Assigned pilots leave the pool; pilots only see mechs they own (toggle to show all).
 - **Rulesets.** Min/max tonnage, min/max per weight class, max copies per chassis and per variant, hero limit,
   Legendary ban, tech base, banned chassis/variants. Broken rules show as warnings, never blocks.
-- **Auto-fill** suggests a legal lineup from attending pilots' hangars and preferences. Everything stays editable by hand.
+- **Chassis first, then pilots.** Captains pick the chassis for each slot; **Auto-assign pilots** fills the open slots from attending pilots' hangars and preferences without changing anything already set. Everything stays editable by hand.
 - **Sharing.** Live view for everyone, Discord-formatted copy/paste, CSV export for Google Sheets.
 - **History.** Results per drop with win rates by pilot, chassis and map.
 - **Mech catalog** of all 1,296 MWO variants from nav-alpha MechDB (IS and Clan, heroes, champions, specials, Legendaries), editable in the app for new
@@ -26,7 +26,7 @@ which builds to run, and who drops in what on each map, with tournament rules ch
 ```bash
 npm install
 npm run dev      # http://localhost:5173, offline demo mode
-npm test         # unit tests for the parser, rules and auto-fill
+npm test         # unit tests for the parser, rules and auto-assign
 npm run build    # static site in dist/
 ```
 
@@ -40,7 +40,7 @@ To use the shared database, follow [SETUP.md](SETUP.md).
 | `src/data/catalog.js` | Weight classes and default map list |
 | `src/lib/mechs.js` | Catalog merge, variant lookup, mwomercs paste parser |
 | `src/lib/rules.js` | Ruleset model and lineup validation |
-| `src/lib/autofill.js` | Lineup suggestion |
+| `src/lib/autofill.js` | Auto-assign pilots to chosen chassis |
 | `src/lib/store.js` | Data layer: Supabase or browser-only demo |
 | `src/pages/` | One file per screen |
 | `supabase/schema.sql` | Tables, permissions and starting data |

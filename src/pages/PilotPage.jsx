@@ -238,15 +238,15 @@ function Prefs({ pilot }) {
     <div className="grid2">
       <div className="card stack">
         <h2>Favourite mechs (ranked)</h2>
-        <p className="muted small">Chassis or exact variants, best first. Auto-fill tries these first.</p>
+        <p className="muted small">Chassis or exact variants, best first. Auto-assign tries these first.</p>
         <MechChips value={prefs.favorites || []} onChange={(v) => set({ favorites: v })} ordered />
         <h2 style={{ marginTop: 18 }}>Won't play</h2>
-        <p className="muted small">Auto-fill never picks these, and captains get a warning if they do.</p>
+        <p className="muted small">Auto-assign never puts you in these, and captains get a warning if they do.</p>
         <MechChips value={prefs.wont || []} onChange={(v) => set({ wont: v })} />
       </div>
       <div className="card stack">
         <h2>Weight classes</h2>
-        <p className="muted small">Rank the classes you like best. Auto-fill prefers higher ranks and never picks a class marked "Won't play".</p>
+        <p className="muted small">Rank the classes you like best. Auto-assign prefers higher ranks and never picks a class marked "Won't play".</p>
         <ClassRanking prefs={prefs} set={set} />
         <h2 style={{ marginTop: 18 }}>Preferred roles</h2>
         <div className="row">
