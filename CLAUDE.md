@@ -41,7 +41,7 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
 - `src/lib/rules.js`: ruleset model and `validateLineup` (warnings only, never blocks). `breaksCap` is currently unused.
 - `src/lib/autofill.js`: `assignPilots` puts pool pilots into slots that have a chassis and no pilot. It solves the whole drop at once
   (Hungarian algorithm: most slots filled, then highest total score). Score (Sean, 2026-10-16): favourite chassis/variant flat +50
-  (order ignored), class rank 1st–4th +20/14/8/2, event note naming the chassis/variant +60 or its class +30. Mastery is not scored.
+  (order ignored), class rank 1st–4th +20/14/8/2, event note naming the chassis/variant +60 or its class +30.
   Playing-time balance (Sean, 2026-10-16): each drop the pilot is already in among the event's earlier drops costs
   `PLAYED_PENALTY` (25, half a favourite). `dropsPlayed(drops, index)` derives the count from the drops' slots (nothing is stored);
   the drop pool, pilot pickers (“Name · 2”) and the Attendance tab's Drops column show it.
@@ -108,6 +108,8 @@ builds, and delete pilots. The UI hides captain controls via `isCaptain`; RLS en
 - The `VITE_SUPABASE_URL` secret was entered as the REST URL (`…/rest/v1/`); the code now strips that.
 - `supabase/schema.sql` has been run (19 maps and the "Open (no limits)" ruleset are seeded), and the captain accounts exist.
   The live site loads from Supabase with no errors.
+- The hangar "mastered ★" flag was removed (Sean, 2026-10-16). The live `pilot_mechs.mastered` column is unused;
+  `supabase/drop_mastered.sql` drops it (optional, Sean's call).
 
 ## External data
 

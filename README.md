@@ -6,7 +6,7 @@ which builds to run, and who drops in what on each map, with tournament rules ch
 ## What it does
 
 - **Pilots & hangars.** Pilots add themselves and paste their mwomercs.com mech list; the app finds every
-  variant code in the pasted text, whatever the page layout. Manual tick-box editing and a "mastered ★" flag too.
+  variant code in the pasted text, whatever the page layout. Manual tick-box editing too.
 - **Preferences.** Ranked favourite mechs, "won't play" mechs, preferred weight classes and roles, plus an
   optional per-event "wants to pilot" note.
 - **Builds.** Team (official) and personal builds with link, MWO export code, notes and tags. Import from a

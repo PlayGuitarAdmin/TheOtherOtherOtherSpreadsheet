@@ -44,11 +44,7 @@ function Hangar({ pilot }) {
   const toggle = async (code) => {
     const h = ownedByCode.get(code);
     if (h) await actions.remove('pilot_mechs', h.id);
-    else await actions.insert('pilot_mechs', { pilot_id: pilot.id, variant: code, mastered: false });
-  };
-  const toggleMastered = (code) => {
-    const h = ownedByCode.get(code);
-    if (h) actions.update('pilot_mechs', h.id, { mastered: !h.mastered });
+    else await actions.insert('pilot_mechs', { pilot_id: pilot.id, variant: code });
   };
 
   const f = filter.trim().toLowerCase();
@@ -71,7 +67,6 @@ function Hangar({ pilot }) {
               <div className="k">{c} chassis</div>
             </div>
           ))}
-          <div className="stat"><div className="v">{owned.filter((h) => h.mastered).length}</div><div className="k">Mastered ★</div></div>
         </div>
       </div>
       <div className="row" style={{ marginBottom: 12 }}>
@@ -83,7 +78,7 @@ function Hangar({ pilot }) {
           <option value="Bigs">Bigs (Heavy + Assault)</option>
         </select>
         <label className="row small"><input type="checkbox" checked={ownedOnly} onChange={(e) => setOwnedOnly(e.target.checked)} /> Owned chassis only</label>
-        <span className="muted small">Tick the variants you own. Click ★ to mark one mastered / ready.</span>
+        <span className="muted small">Tick the variants you own.</span>
       </div>
       {list.length === 0 && <p className="muted">{ownedOnly ? 'No mechs yet. Untick "Owned chassis only" to add some, or use the paste tab.' : 'No match.'}</p>}
       <div className="chassis-grid">
@@ -104,11 +99,6 @@ function Hangar({ pilot }) {
                   <label key={v.code} title={v.kind !== 'standard' ? v.kind : ''}>
                     <input type="checkbox" checked={!!h} onChange={() => toggle(v.code)} />
                     <span style={{ color: v.kind === 'hero' ? 'var(--gold)' : v.kind === 'legendary' ? '#c58cff' : undefined }}>{v.code}</span>
-                    {h && (
-                      <button className="link small" onClick={(e) => { e.preventDefault(); toggleMastered(v.code); }} title="Mastered / ready">
-                        {h.mastered ? '★' : '☆'}
-                      </button>
-                    )}
                   </label>
                 );
               })}
@@ -147,7 +137,7 @@ function PasteImport({ pilot, onDone }) {
   };
   const saveHangar = async () => {
     const add = [...picked].filter((c) => !ownedCodes.has(c));
-    await actions.insertMany('pilot_mechs', add.map((variant) => ({ pilot_id: pilot.id, variant, mastered: false })));
+    await actions.insertMany('pilot_mechs', add.map((variant) => ({ pilot_id: pilot.id, variant })));
     let removed = 0;
     if (replace) {
       const drop = owned.filter((h) => !picked.has(h.variant)).map((h) => h.id);
