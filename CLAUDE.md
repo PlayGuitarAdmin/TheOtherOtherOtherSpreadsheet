@@ -30,8 +30,11 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
   in-app Settings page. `cleanUrl` strips a pasted `/rest/v1/` suffix.
 - `src/lib/data.jsx`: React context. Loads every table, reloads on realtime changes, and exposes `actions`, `catalog`, `isCaptain` and lookup maps.
 - `src/data/catalog-data.js`: generated from nav-alpha MechDB by `scripts/import-nav-alpha.mjs`; don't hand-edit.
-  It holds 1,296 variants. Kinds: standard, omni, hero, champion, special, legendary. Heroes are named by display name
-  ("HUGINN") with the short code ("RVN-H") as an alias. `(L)` and `(LGD)` mean Legendary.
+  It holds 1,296 variants. Kinds: standard, omni, hero, champion, loyalty, special, legendary. Heroes are named by display name
+  ("HUGINN") with the short code ("RVN-H") as an alias. Per Sean: **"(L)" is always Loyalty**. Legendary means "(LGD)" plus the
+  earlier paid named ones like HOWL; both have nav-alpha internal names ending in "lgd". Heroes that share a code with a
+  Legendary (TBR-H vs HOWL, PXH-S vs PXH-S(LGD)) carry `lgdHero`, which the rule `banLegendaryHeroes` bans.
+  Tournament Supporter Pack mechs are stored as "TBR-M(TSP)", with nav-alpha's "TBR-MTS(P)" as an alias.
   Team fixes go in the `custom_mechs` table (a matching code overrides the built-in).
 - `src/lib/mechs.js`: `buildCatalog`, `lookupVariant` (handles aliases and suffixes like `AS7-D(F)`), and `parseMechPaste`
   (finds variant codes plus hyphen-less hero names anywhere in pasted mwomercs.com text).

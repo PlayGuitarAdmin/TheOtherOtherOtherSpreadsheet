@@ -3,7 +3,7 @@ import { WEIGHT_CLASSES, weightClass } from '../data/catalog.js';
 import { ClassPill, Field, KindPill, TechLabel } from '../components/ui.jsx';
 import { useData } from '../lib/data.jsx';
 
-const KINDS = ['standard', 'omni', 'hero', 'champion', 'special', 'legendary'];
+const KINDS = ['standard', 'omni', 'hero', 'champion', 'loyalty', 'special', 'legendary'];
 
 export default function MechsPage() {
   const { catalog, data, actions, isCaptain, hangars, pilotsById } = useData();

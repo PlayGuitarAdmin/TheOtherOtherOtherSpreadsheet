@@ -94,10 +94,11 @@ function RulesetEditor({ ruleset, onCopy, onDeleted }) {
             <option value="CL">Clan only</option>
           </select>
           <label className="row"><input type="checkbox" checked={rules.banLegendary} disabled={dis} onChange={(e) => set({ banLegendary: e.target.checked })} /> Ban Legendary mechs</label>
+          <label className="row"><input type="checkbox" checked={rules.banLegendaryHeroes} disabled={dis} onChange={(e) => set({ banLegendaryHeroes: e.target.checked })} /> Ban hero versions of Legendaries (e.g. PXH-S)</label>
           <h2>Banned chassis</h2>
           <MechChips value={rules.bannedChassis} disabled={dis} allowVariants={false} onChange={(v) => set({ bannedChassis: v })} />
           <h2>Banned variants</h2>
-          <p className="muted small">Use this for heroes of Legendary mechs and any one-off bans.</p>
+          <p className="muted small">For any one-off bans.</p>
           <MechChips value={rules.bannedVariants} disabled={dis} allowChassis={false} onChange={(v) => set({ bannedVariants: v })} />
         </div>
       </div>

@@ -9,7 +9,7 @@ export function ClassPill({ wclass }) {
 
 export function KindPill({ kind }) {
   if (!kind || kind === 'standard' || kind === 'omni') return null;
-  const label = { hero: 'Hero', legendary: 'Legendary', champion: 'Champion', special: 'Special' }[kind] || kind;
+  const label = { hero: 'Hero', legendary: 'Legendary', champion: 'Champion', special: 'Special', loyalty: 'Loyalty' }[kind] || kind;
   return <span className={`pill ${kind}`}>{label}</span>;
 }
 

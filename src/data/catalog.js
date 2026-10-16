@@ -16,7 +16,9 @@ export function weightClass(tons) {
 function parse() {
   const variants = [];
   for (const [chassis, tons, tech, list] of CATALOG_ROWS) {
-    for (const [code, kind, alias] of list) variants.push({ code, chassis, tons, tech, kind, alias });
+    for (const [code, kind, alias, lgdHero] of list) {
+      variants.push({ code, chassis, tons, tech, kind, alias: alias || undefined, lgdHero: !!lgdHero });
+    }
   }
   return variants;
 }

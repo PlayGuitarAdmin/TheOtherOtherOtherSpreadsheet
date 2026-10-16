@@ -90,7 +90,7 @@ tr:hover td { background: #122b31; }
 .pill.Assault { color: var(--assault); border-color: var(--assault); }
 .pill.hero { color: var(--gold); border-color: var(--gold); }
 .pill.legendary { color: #c58cff; border-color: #c58cff; }
-.pill.champion, .pill.special { color: #8fd3ff; border-color: #8fd3ff; }
+.pill.champion, .pill.special, .pill.loyalty { color: #8fd3ff; border-color: #8fd3ff; }
 .pill.yes { color: var(--green); border-color: var(--green); }
 .pill.maybe { color: var(--warn); border-color: var(--warn); }
 .pill.no { color: #ff8a8a; border-color: #ff8a8a; }

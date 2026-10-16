@@ -10,6 +10,7 @@ export function emptyRules() {
     maxPerVariant: null,
     tech: 'any', // any | IS | CL
     banLegendary: true,
+    banLegendaryHeroes: true, // hero versions of Legendaries, e.g. PXH-S next to PXH-S(LGD)
     maxHero: null,
     bannedChassis: [],
     bannedVariants: [],
@@ -73,6 +74,7 @@ export function validateLineup(catalog, slots, rulesIn) {
     const name = m.code || m.chassis;
     if (rules.tech !== 'any' && m.tech !== rules.tech) warnings.push(`${name} is ${m.tech === 'CL' ? 'Clan' : 'Inner Sphere'}; this ruleset is ${rules.tech === 'CL' ? 'Clan' : 'Inner Sphere'} only.`);
     if (rules.banLegendary && m.kind === 'legendary') warnings.push(`${name} is a Legendary mech, which is banned.`);
+    if (rules.banLegendaryHeroes && m.lgdHero) warnings.push(`${name} is the hero version of a Legendary, which is banned.`);
     if (rules.bannedChassis.includes(m.chassis)) warnings.push(`${m.chassis} chassis is banned.`);
     if (m.code && (rules.bannedVariants.includes(m.code) || rules.bannedVariants.includes(m.baseCode))) warnings.push(`${m.code} is banned.`);
   }
@@ -96,6 +98,7 @@ export function breaksCap(catalog, slots, mech, rulesIn, remainingAfter) {
   if (maxHero !== null && mech.kind === 'hero' && st.heroes + 1 > maxHero) return true;
   if (rules.tech !== 'any' && mech.tech !== rules.tech) return true;
   if (rules.banLegendary && mech.kind === 'legendary') return true;
+  if (rules.banLegendaryHeroes && mech.lgdHero) return true;
   if (rules.bannedChassis.includes(mech.chassis)) return true;
   if (mech.code && (rules.bannedVariants.includes(mech.code) || rules.bannedVariants.includes(mech.baseCode))) return true;
   return false;

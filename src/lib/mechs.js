@@ -21,7 +21,7 @@ export function buildCatalog(customRows = []) {
   }
   const variants = [...byCode.values()].map((v) => ({ ...v, wclass: weightClass(v.tons) }));
   for (const v of variants) byCode.set(v.code, v);
-  // Hero short codes ("RVN-H" for HUGINN) resolve to the hero.
+  // Aliases: hero short codes ("RVN-H" for HUGINN) and nav-alpha's TSP spelling ("TBR-MTS(P)").
   const aliases = new Map();
   for (const v of variants) if (v.alias && !byCode.has(v.alias)) aliases.set(v.alias, v.code);
   // Variants whose name has no dash (mostly heroes, e.g. "HUGINN", "THE BOAR'S HEAD") need
@@ -44,7 +44,7 @@ export function buildCatalog(customRows = []) {
 const SUFFIX = /^(.*?)\s?\(([A-Z0-9]{1,4})\)$/;
 
 // Look up a variant code. Special variants like "AS7-D(F)" resolve to their base
-// variant's chassis and tonnage, with kind "champion" for (C), "legendary" for (L)/(LGD) and "special" otherwise.
+// variant's chassis and tonnage, with kind "champion" for (C), "loyalty" for (L), "legendary" for (LGD) and "special" otherwise.
 export function lookupVariant(catalog, rawCode) {
   if (!rawCode) return null;
   const code = String(rawCode).toUpperCase().replace(/\s+\(/, '(').trim();
@@ -54,7 +54,7 @@ export function lookupVariant(catalog, rawCode) {
   if (m) {
     const base = catalog.byCode.get(m[1]);
     if (base) {
-      const kind = m[2] === 'C' ? 'champion' : m[2] === 'L' || m[2] === 'LGD' ? 'legendary' : 'special';
+      const kind = { C: 'champion', L: 'loyalty', LGD: 'legendary' }[m[2]] || 'special';
       return { ...base, code, kind, baseCode: base.code };
     }
   }

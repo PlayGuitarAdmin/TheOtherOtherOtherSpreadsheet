@@ -25,8 +25,19 @@ describe('catalog', () => {
 
   it('knows heroes by name and short code, and Legendaries', () => {
     expect(lookupVariant(catalog, 'RVN-H')).toMatchObject({ code: 'HUGINN', chassis: 'Raven', kind: 'hero' });
-    expect(lookupVariant(catalog, 'AS7-S(L)').kind).toBe('legendary');
+    expect(lookupVariant(catalog, 'AS7-S(L)').kind).toBe('loyalty');
     expect(lookupVariant(catalog, 'CN9-YLW2(LGD)').kind).toBe('legendary');
+    expect(lookupVariant(catalog, 'HOWL')).toMatchObject({ chassis: 'Timber Wolf', kind: 'legendary' });
+    expect(lookupVariant(catalog, 'TBR-H')).toMatchObject({ kind: 'hero', lgdHero: true });
+  });
+
+  it('accepts both spellings of Tournament Supporter Pack mechs', () => {
+    for (const c of ['LCT', 'CRB', 'MAD', 'TBR', 'KDK']) {
+      expect(lookupVariant(catalog, `${c}-M(TSP)`)?.code).toBe(`${c}-M(TSP)`);
+      expect(lookupVariant(catalog, `${c}-MTS(P)`)?.code).toBe(`${c}-M(TSP)`);
+    }
+    const { found } = parseMechPaste('TBR-M(TSP) and KDK-MTS(P)', catalog);
+    expect(found.map((f) => f.code).sort()).toEqual(['KDK-M(TSP)', 'TBR-M(TSP)']);
     expect(lookupVariant(catalog, 'SD1-O')).toMatchObject({ chassis: 'Sunder', tons: 90 });
   });
 
@@ -55,6 +66,11 @@ describe('rules', () => {
     expect(w.some((x) => x.includes('Light'))).toBe(true);
     expect(w.some((x) => x.includes('Atlas chassis'))).toBe(true);
     expect(w.some((x) => x.includes('hero'))).toBe(true);
+  });
+
+  it('bans Legendaries and their hero versions but not Loyalty mechs', () => {
+    const w = validateLineup(catalog, [slot('HOWL'), slot('TBR-H'), slot('AS7-S(L)')], emptyRules());
+    expect(w).toEqual(['HOWL is a Legendary mech, which is banned.', 'TBR-H is the hero version of a Legendary, which is banned.']);
   });
 
   it('is happy with a legal lineup', () => {
