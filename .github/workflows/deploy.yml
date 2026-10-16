@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Daily rebuild so the GrimMechs build list (public/grimmechs.json) stays current.
+  schedule:
+    - cron: '17 9 * * *'
 
 permissions:
   contents: read
@@ -25,6 +28,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Refresh GrimMechs builds (keeps the committed copy if the site is down)
+        run: node scripts/import-grimmechs.mjs
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

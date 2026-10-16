@@ -3,7 +3,8 @@ import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
 import { CaptainNote, ChassisSelect, ClassPill, Field, KindPill } from '../components/ui.jsx';
 import { assignPilots } from '../lib/autofill.js';
 import { useData } from '../lib/data.jsx';
-import { discordText, downloadFile, lineupCsvRows, toCsv } from '../lib/export.js';
+import { discordText, downloadFile, lineupCsvRows, slotBuild, toCsv } from '../lib/export.js';
+import { grimBuildsFor } from '../lib/grimmechs.js';
 import { lookupVariant, slotMech, sortSlots } from '../lib/mechs.js';
 import { lineupStats, validateLineup } from '../lib/rules.js';
 import { blankSlots } from './EventsPage.jsx';
@@ -359,14 +360,11 @@ function NotesInput({ value, onSave, disabled }) {
 }
 
 function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf }) {
-  const { catalog, pilotsById, data } = useData();
+  const { catalog, pilotsById, grim } = useData();
   const pilot = pilotsById[slot.pilotId];
   const owned = slot.pilotId ? ownedBy[slot.pilotId] || [] : [];
 
   const variantOptions = slot.chassis ? catalog.chassisByName.get(slot.chassis)?.variants || [] : [];
-  const builds = data.builds.filter(
-    (b) => slot.chassis && b.chassis === slot.chassis && (!slot.variant || !b.variant || b.variant === slot.variant || b.official) && (b.official || !b.pilot_id || b.pilot_id === slot.pilotId),
-  );
   const mech = slotMech(catalog, slot);
 
   // Pilots who own this chassis come first; anyone else is still pickable by hand.
@@ -382,10 +380,15 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf }
       <ChassisSelect
         value={slot.chassis}
         disabled={!editable}
-        onChange={(chassis) => onPatch(() => ({ chassis, variant: null, buildId: null }))}
+        onChange={(chassis) => onPatch(() => ({ chassis, variant: null, buildId: null, grim: null }))}
       />
       <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-        <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ variant: e.target.value || null }))}>
+        <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch((s) => {
+          const variant = e.target.value || null;
+          // A GrimMechs build made for other variants no longer fits.
+          const fits = grim.byId.get(s.grim?.id)?.variants;
+          return { variant, ...(variant && fits?.length && !fits.includes(variant) ? { grim: null } : {}) };
+        })}>
           <option value="">Any variant</option>
           {variantOptions.map((v) => {
             const mine = owned.find((m) => m.code === v.code);
@@ -421,18 +424,69 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf }
           candidates.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
         )}
       </select>
-      <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-        <select value={slot.buildId || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ buildId: e.target.value || null }))}>
-          <option value="">{slot.chassis ? (builds.length ? 'No build' : 'No builds saved') : '–'}</option>
-          {builds.map((b) => <option key={b.id} value={b.id}>{b.official ? '★ ' : ''}{b.name}{b.variant ? ` (${b.variant})` : ''}</option>)}
-        </select>
-        {slot.buildId && data.builds.find((b) => b.id === slot.buildId)?.link && (
-          <a href={data.builds.find((b) => b.id === slot.buildId).link} target="_blank" rel="noreferrer" title="Open build">↗</a>
-        )}
-      </div>
-      {editable ? <button className="link" title="Clear slot" onClick={() => onPatch(() => ({ pilotId: null, chassis: null, variant: null, buildId: null }))}>×</button> : <span />}
+      <BuildCell slot={slot} editable={editable} onPatch={onPatch} />
+      {editable ? <button className="link" title="Clear slot" onClick={() => onPatch(() => ({ pilotId: null, chassis: null, variant: null, buildId: null, grim: null }))}>×</button> : <span />}
       {flags.length > 0 && <div className="flags">⚠ {flags.join('; ')}</div>}
     </div>
+  );
+}
+
+// Build column: the GrimMechs "Loadout" text, linked to that build's "Build" link, or one of the team's saved builds.
+// The picked build is copied onto the slot so it still shows if GrimMechs later drops the row.
+function BuildCell({ slot, editable, onPatch }) {
+  const { data, grim } = useData();
+  const [editing, setEditing] = useState(false);
+  const chosen = slotBuild(slot, Object.fromEntries(data.builds.map((b) => [b.id, b])));
+  if (!slot.chassis) return <span className="muted">–</span>;
+
+  const team = data.builds.filter(
+    (b) => b.chassis === slot.chassis && (!slot.variant || !b.variant || b.variant === slot.variant || b.official) && (b.official || !b.pilot_id || b.pilot_id === slot.pilotId),
+  );
+  const grimBuilds = grimBuildsFor(grim, slot.chassis, slot.variant);
+  const pick = (value) => {
+    setEditing(false);
+    if (!value) return onPatch(() => ({ buildId: null, grim: null }));
+    const [kind, id] = [value.slice(0, 2), value.slice(2)];
+    if (kind === 'b:') return onPatch(() => ({ buildId: id, grim: null }));
+    const b = grim.byId.get(id);
+    if (!b) return;
+    // A build made for one variant sets that variant when the slot has none yet.
+    onPatch((s) => ({
+      buildId: null,
+      grim: { id: b.id, loadout: b.loadout, link: b.link, name: b.name, variant: b.variant },
+      ...(!s.variant && b.variants.length === 1 ? { variant: b.variants[0] } : {}),
+    }));
+  };
+
+  if (chosen && (!editable || !editing)) {
+    return (
+      <div className="row" style={{ flexWrap: 'nowrap', gap: 4, minWidth: 0 }}>
+        {chosen.link ? (
+          <a href={chosen.link} target="_blank" rel="noreferrer" title={chosen.title} className="build-link">{chosen.name}</a>
+        ) : (
+          <span title={chosen.title} className="build-link">{chosen.name}</span>
+        )}
+        {editable && <button className="link" title="Change build" onClick={() => setEditing(true)}>▾</button>}
+      </div>
+    );
+  }
+  if (!editable) return <span className="muted">–</span>;
+  const value = slot.grim ? `g:${slot.grim.id}` : slot.buildId ? `b:${slot.buildId}` : '';
+  return (
+    <select value={value} autoFocus={editing} onBlur={() => setEditing(false)} onChange={(e) => pick(e.target.value)}>
+      <option value="">{team.length || grimBuilds.length ? 'No build' : 'No builds found'}</option>
+      {slot.grim && !grimBuilds.some((b) => b.id === slot.grim.id) && <option value={value}>{slot.grim.loadout}</option>}
+      {team.length > 0 && (
+        <optgroup label="Team builds">
+          {team.map((b) => <option key={b.id} value={`b:${b.id}`}>{b.official ? '★ ' : ''}{b.name}{b.variant ? ` (${b.variant})` : ''}</option>)}
+        </optgroup>
+      )}
+      {grimBuilds.length > 0 && (
+        <optgroup label="GrimMechs (★ highly recommended)">
+          {grimBuilds.map((b) => <option key={b.id} value={`g:${b.id}`}>{b.reco ? '★ ' : ''}{b.loadout} · {b.variant} · {b.name}</option>)}
+        </optgroup>
+      )}
+    </select>
   );
 }
 

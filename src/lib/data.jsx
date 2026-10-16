@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { indexGrimBuilds } from './grimmechs.js';
 import { buildCatalog } from './mechs.js';
 import { createBackend, TABLES } from './store.js';
 
@@ -14,6 +15,15 @@ export function DataProvider({ children }) {
   const [user, setUser] = useState(null);
   const [toast, setToast] = useState(null);
   const reloadTimer = useRef(null);
+  const [grimFile, setGrimFile] = useState(null);
+
+  // GrimMechs builds: a copy refreshed by the deploy workflow (see scripts/import-grimmechs.mjs).
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}grimmechs.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setGrimFile)
+      .catch(() => setGrimFile(null));
+  }, []);
 
   const reload = useCallback(async () => {
     try {
@@ -75,6 +85,10 @@ export function DataProvider({ children }) {
   );
 
   const catalog = useMemo(() => buildCatalog(data.custom_mechs), [data.custom_mechs]);
+  const grim = useMemo(
+    () => ({ ...indexGrimBuilds(catalog, grimFile?.builds), fetched: grimFile?.fetched || null }),
+    [catalog, grimFile],
+  );
 
   const value = useMemo(() => {
     const hangars = {};
@@ -88,6 +102,7 @@ export function DataProvider({ children }) {
       user,
       isCaptain: !!user,
       catalog,
+      grim,
       actions,
       notify,
       toast,
@@ -100,7 +115,7 @@ export function DataProvider({ children }) {
       rulesetsById: byId(data.rulesets),
       eventsById: byId(data.events),
     };
-  }, [backend, data, loading, error, user, catalog, actions, notify, toast, reload]);
+  }, [backend, data, loading, error, user, catalog, grim, actions, notify, toast, reload]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

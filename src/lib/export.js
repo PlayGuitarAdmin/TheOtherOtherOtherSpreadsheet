@@ -1,6 +1,16 @@
 import { slotMech, sortSlots } from './mechs.js';
 import { lineupStats } from './rules.js';
 
+// What a slot's Build column shows: a GrimMechs loadout or a saved team build.
+export function slotBuild(slot, buildsById) {
+  if (slot.grim) {
+    const g = slot.grim;
+    return { name: g.loadout, link: g.link, title: `GrimMechs: ${g.name} (${g.variant})` };
+  }
+  const b = buildsById[slot.buildId];
+  return b ? { name: b.name, link: b.link || '', title: b.notes || b.name } : null;
+}
+
 const pad = (s, n) => {
   const str = String(s ?? '');
   return str.length > n ? `${str.slice(0, n - 1)}…` : str.padEnd(n);
@@ -28,7 +38,7 @@ export function discordText({ event, drops, ctx }) {
       const pilot = pilotsById[s.pilotId]?.name || '(open)';
       const mech = m ? m.code || m.chassis : '-';
       const tons = m ? `${m.tons}t ${m.wclass[0]}` : '';
-      const build = buildsById[s.buildId]?.name || '';
+      const build = slotBuild(s, buildsById)?.name || '';
       out.push(`${String(idx + 1).padStart(2)} ${pad(pilot, 16)} ${pad(mech, 14)} ${pad(tons, 7)} ${build}`.trimEnd());
     });
     out.push('```');
@@ -52,7 +62,7 @@ export function lineupCsvRows({ event, drops, ctx }) {
   drops.forEach((drop, i) => {
     sortSlots(catalog, drop.slots || []).forEach((s, idx) => {
       const m = slotMech(catalog, s);
-      const b = buildsById[s.buildId];
+      const b = slotBuild(s, buildsById);
       rows.push([
         event.name, event.date, i + 1, mapsById[drop.map_id]?.name || '', idx + 1, s.lance || '',
         pilotsById[s.pilotId]?.name || '', m?.chassis || '', m?.code || '', m?.tons || '', m?.wclass || '',

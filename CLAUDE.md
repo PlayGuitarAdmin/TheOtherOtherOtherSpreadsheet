@@ -46,11 +46,21 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
   slot-by-slot greedy gave a bigs pilot a light while a better-suited pilot sat out. Per Sean it sets **only `pilotId`**: never chassis,
   variant or build (captains pick chassis and variants by hand). A variant set on a slot limits it to pilots who own that variant.
   Picking a pilot by hand also sets only the pilot. Older slots may carry stray `autoVariant`/`autoBuild` flags; they're ignored.
-- `src/lib/export.js`: Discord text (code block) and CSV.
+- `src/lib/grimmechs.js` + `scripts/import-grimmechs.mjs`: GrimMechs community builds (https://grimmechs.isengrim.org/Database).
+  The site sends no CORS headers and has no API (one server-rendered ~2.8 MB HTML table), so the browser can't read it live.
+  The deploy workflow runs the import script before every build and on a daily schedule (09:17 UTC), writing
+  `public/grimmechs.json` (served next to the app); if the fetch fails or parses under 500 rows, the committed copy is kept.
+  Refresh the committed copy now and then with `node scripts/import-grimmechs.mjs`. `indexGrimBuilds` maps Grim's loose
+  variant labels ("IFR-A/B/C/D", "FMT-any", "SCR-COR+LC", "TBR-M" = TBR-M(TSP), "RFL-3N-SH" = RFL-3N-SHLGD) onto our chassis/codes.
+  Drops' Build column (Sean, 2026-10-16) shows the GrimMechs "Loadout" text linked to its "Build" link; team builds are still
+  pickable there too. Picking a Grim build for one variant sets the slot's variant if it had none; changing to a variant the build
+  doesn't fit clears it. GitHub disables scheduled workflows after 60 days without repo activity; re-enable in the Actions tab.
+- `src/lib/export.js`: Discord text (code block) and CSV. `slotBuild` gives a slot's build label and link (Grim or team build).
 - `src/pages/*`: one screen each, with hash routing in `App.jsx` (`#/events/:id`, `#/pilots/:id`, …).
 - `supabase/schema.sql`: tables, RLS and seed data. Changing table columns means updating this and the code together.
 
-Data shape notes: `drops.slots` is a jsonb array of `{pilotId, chassis, variant, buildId, lance}`; `pilots.prefs` is
+Data shape notes: `drops.slots` is a jsonb array of `{pilotId, chassis, variant, buildId, grim, lance}`
+(`grim` is a copy of the picked GrimMechs build `{id, loadout, link, name, variant}`, so it survives Grim removing the row); `pilots.prefs` is
 `{favorites[], wont[], classes[] (ranked, best first), wontClasses[], roles[]}`; `rulesets.rules` matches `emptyRules()`.
 
 ## Permissions model (RLS)

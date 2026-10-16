@@ -133,3 +133,4 @@ pre.discord { background: #2b2d31; color: #dbdee1; padding: 12px; border-radius:
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 2px 4px 2px 10px; font-size: 12px; display: inline-flex; gap: 4px; align-items: center; }
 .chip button { padding: 0 6px; border: none; background: none; color: var(--muted); }
+.build-link { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

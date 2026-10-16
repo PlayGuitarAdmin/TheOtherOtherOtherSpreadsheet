@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILTIN_VARIANTS, classesInText } from '../src/data/catalog.js';
 import { assignPilots } from '../src/lib/autofill.js';
 import { buildCatalog, lookupVariant, parseMechPaste, sortSlots } from '../src/lib/mechs.js';
+import { grimBuildsFor, indexGrimBuilds, parseGrimMechs } from '../src/lib/grimmechs.js';
 import { emptyRules, validateLineup } from '../src/lib/rules.js';
 
 const catalog = buildCatalog();
@@ -177,5 +178,44 @@ describe('weight class shorthand and preferences', () => {
     expect(run({ classes: ['Medium', 'Assault'] })).toBe('Nova');
     expect(run({ classes: ['Assault'], wontClasses: ['Assault'] })).not.toBe('Dire Wolf');
     expect(run({ classes: ['Light'] }, { a: 'bigs tonight' })).toBe('Dire Wolf');
+  });
+});
+
+describe('GrimMechs builds', () => {
+  const row = (id, variant, chassis, loadout = 'LOAD', extra = '') =>
+    `<tr id="${id}" class="BdEnt"><td class="faction Clan center">Clan</td><td class="mechname chassisname Clan">${chassis}</td>` +
+    `<td class="mechname variantname"><span><span title="${variant}">${variant}</span></span></td>` +
+    `<td class="buildname leftBorderThicc"><div class="bd"><button><img class="bc"></button></div><a href="https://mwo.nav-alpha.com/mechlab?b=x_${id}&amp;y=1" target="_blank">Build ${id}</a>${extra}</td>` +
+    `<td class="buildname engine center">XL300</td><td class="buildname loadout">${loadout}</td><td class="range long-range center">long</td>` +
+    `<td class="date leftBorderThicc center"><span>3 Mar 2025</span><div style="display:none;">Added by X</div></td></tr>`;
+  const html = `<tbody>${[
+    row(1, 'TBR-PRIME', 'Timber Wolf', '2ERLL + 4ERML', '<span class="reco-yes">&nbsp;&#9733;</span>'),
+    row(2, 'TBR-M', 'Timber Wolf', '4HLL'),
+    row(3, 'TBR-A/C/D/BH', 'Timber Wolf', '2LPL &amp; more'),
+    row(4, 'EBJ-any', 'Ebon Jaguar'),
+    row(5, 'RFL-3N-SH', 'Sneede'),
+  ].join('')}</tbody>`;
+  const rows = parseGrimMechs(html);
+  const idx = indexGrimBuilds(catalog, rows);
+
+  it('reads loadout, build link and name from the page', () => {
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toMatchObject({ id: '1', variant: 'TBR-PRIME', loadout: '2ERLL + 4ERML', name: 'Build 1', engine: 'XL300', range: 'long', updated: '3 Mar 2025', reco: true });
+    expect(rows[0].link).toBe('https://mwo.nav-alpha.com/mechlab?b=x_1&y=1');
+    expect(rows[2].loadout).toBe('2LPL & more');
+  });
+
+  it('maps loose variant labels onto our chassis and codes', () => {
+    expect(idx.byId.get('2').variants).toEqual(['TBR-M(TSP)']);
+    expect(idx.byId.get('3').variants).toEqual(['TBR-A', 'TBR-C', 'TBR-D', 'TBR-BH']);
+    expect(idx.byId.get('4')).toMatchObject({ chassis: 'Ebon Jaguar', variants: [] });
+    expect(idx.byId.get('5').variants).toEqual(['RFL-3N-SHLGD']);
+  });
+
+  it('lists builds for a slot, narrowed by variant, recommended first', () => {
+    expect(grimBuildsFor(idx, 'Timber Wolf', null).map((b) => b.id)).toEqual(['1', '3', '2']);
+    expect(grimBuildsFor(idx, 'Timber Wolf', 'TBR-C').map((b) => b.id)).toEqual(['3']);
+    expect(grimBuildsFor(idx, 'Ebon Jaguar', 'EBJ-A')).toHaveLength(1);
+    expect(grimBuildsFor(idx, null, null)).toEqual([]);
   });
 });
