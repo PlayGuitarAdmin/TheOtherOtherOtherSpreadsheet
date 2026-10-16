@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_VARIANTS, classesInText } from '../src/data/catalog.js';
 import { assignPilots } from '../src/lib/autofill.js';
-import { buildCatalog, lookupVariant, parseMechPaste } from '../src/lib/mechs.js';
+import { buildCatalog, lookupVariant, parseMechPaste, sortSlots } from '../src/lib/mechs.js';
 import { emptyRules, validateLineup } from '../src/lib/rules.js';
 
 const catalog = buildCatalog();
@@ -117,10 +117,30 @@ describe('auto-assign pilots', () => {
     expect(unfilled).toEqual([1, 2]);
   });
 
+  it('optimises the whole lineup, not slot by slot', () => {
+    // B ranks Assault first but also owns the light; C has no preferences. B must get the assault.
+    const h = { b: [{ variant: 'RVN-4X' }, { variant: 'SR-1' }], c: [{ variant: 'RVN-3L' }, { variant: 'SR-2' }], d: [{ variant: 'SR-1' }] };
+    const p = [{ id: 'b', prefs: { classes: ['Assault', 'Heavy', 'Light'] } }, { id: 'c', prefs: {} }, { id: 'd', prefs: {} }];
+    const out = assignPilots({ catalog, slots: [{ chassis: 'Raven' }, { chassis: 'Stone Rhino' }], pool: p, hangars: h, rules: emptyRules() }).slots;
+    expect(out.map((s) => s.pilotId)).toEqual(['c', 'b']);
+  });
+
+  it('treats a variant that only followed an earlier pilot as open', () => {
+    const { slots: out } = run([{ pilotId: null, chassis: 'Timber Wolf', variant: 'TBR-C', autoVariant: true }]);
+    expect(out[0]).toMatchObject({ pilotId: 'b', variant: 'TBR-S' });
+  });
+
   it('gives a contested chassis to the pilot who fits it better', () => {
     const { slots: out } = run([{ pilotId: null, chassis: 'Arctic Cheetah' }, { pilotId: null, chassis: 'Dire Wolf' }]);
     expect(out[1].pilotId).toBe('a');
     expect(out[0].pilotId).toBe('c');
+  });
+});
+
+describe('drop order', () => {
+  it('sorts by chassis tonnage, then name, with empty slots last', () => {
+    const out = sortSlots(catalog, [{ chassis: null }, { chassis: 'Atlas' }, { chassis: 'Timber Wolf' }, { chassis: 'Mad Dog' }, { chassis: 'Arctic Cheetah' }]);
+    expect(out.map((s) => s.chassis)).toEqual(['Arctic Cheetah', 'Mad Dog', 'Timber Wolf', 'Atlas', null]);
   });
 });
 

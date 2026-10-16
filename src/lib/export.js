@@ -1,4 +1,4 @@
-import { slotMech } from './mechs.js';
+import { slotMech, sortSlots } from './mechs.js';
 import { lineupStats } from './rules.js';
 
 const pad = (s, n) => {
@@ -12,7 +12,7 @@ export function discordText({ event, drops, ctx }) {
   const { catalog, pilotsById, mapsById, buildsById } = ctx;
   const out = [`♠ **ACES WILD · ${event.name}**${event.date ? ` · ${event.date}` : ''}`];
   drops.forEach((drop, i) => {
-    const slots = drop.slots || [];
+    const slots = sortSlots(catalog, drop.slots || []);
     const st = lineupStats(catalog, slots);
     const map = mapsById[drop.map_id]?.name || 'Map TBD';
     out.push('');
@@ -50,7 +50,7 @@ export function lineupCsvRows({ event, drops, ctx }) {
   const { catalog, pilotsById, mapsById, buildsById } = ctx;
   const rows = [['Event', 'Date', 'Drop', 'Map', 'Slot', 'Lance', 'Pilot', 'Chassis', 'Variant', 'Tons', 'Class', 'Build', 'Build link', 'Result']];
   drops.forEach((drop, i) => {
-    (drop.slots || []).forEach((s, idx) => {
+    sortSlots(catalog, drop.slots || []).forEach((s, idx) => {
       const m = slotMech(catalog, s);
       const b = buildsById[s.buildId];
       rows.push([

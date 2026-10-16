@@ -113,3 +113,9 @@ export function mechLabel(mech) {
   if (!mech) return '';
   return mech.code ? `${mech.code} (${mech.chassis})` : `${mech.chassis} (any variant)`;
 }
+
+// Drop lineups are listed lightest chassis first, then by chassis name; slots without a chassis go last.
+export function sortSlots(catalog, slots) {
+  const tons = (s) => (s.chassis ? catalog.chassisByName.get(s.chassis)?.tons ?? 999 : Infinity);
+  return [...slots].sort((a, b) => tons(a) - tons(b) || String(a.chassis || '').localeCompare(String(b.chassis || '')));
+}

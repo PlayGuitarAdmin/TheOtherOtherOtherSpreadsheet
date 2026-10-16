@@ -78,39 +78,68 @@ export function assignPilots({ catalog, slots, pool, hangars, builds = [], rules
 
   const open = result.map((s, i) => i).filter((i) => result[i].chassis && !result[i].pilotId);
   const used = new Set(result.map((s) => s.pilotId).filter(Boolean));
-  const fits = new Map(); // slot index -> [{pilot, score, variant}]
-  for (const i of open) {
+  const free = pool.filter((p) => !used.has(p.id));
+  // fit[r][c]: pilot c in open slot r. A variant or build that only followed an earlier pilot isn't binding.
+  const fit = open.map((i) => {
     const s = result[i];
-    const list = [];
-    for (const p of pool) {
-      if (used.has(p.id)) continue;
-      const fit = pilotFit({ catalog, pilot: p, chassis: s.chassis, slotVariant: s.variant, owned: ownedBy[p.id], rules, request: requests[p.id] });
-      if (fit) list.push({ pilot: p, ...fit });
-    }
-    fits.set(i, list);
-  }
+    const slotVariant = s.autoVariant ? null : s.variant;
+    return free.map((p) => pilotFit({ catalog, pilot: p, chassis: s.chassis, slotVariant, owned: ownedBy[p.id], rules, request: requests[p.id] }));
+  });
 
-  // Greedy: fill the slot with the fewest candidates first, giving it its best-scoring pilot.
-  const remaining = new Set(open);
-  for (;;) {
-    let best = null;
-    for (const i of remaining) {
-      const cands = fits.get(i).filter((f) => !used.has(f.pilot.id));
-      if (!cands.length) continue;
-      const top = cands.reduce((a, b) => (b.score > a.score ? b : a));
-      if (!best || cands.length < best.n || (cands.length === best.n && top.score > best.top.score)) best = { i, n: cands.length, top };
-    }
-    if (!best) break;
-    const s = result[best.i];
-    const build = s.buildId ? null : officialBuild(builds, s.chassis, best.top.variant);
-    result[best.i] = {
+  // Best overall lineup, not slot by slot: fill as many slots as possible, then maximise the total preference score.
+  const n = Math.max(open.length, free.length);
+  const cost = Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => {
+    const f = fit[r]?.[c];
+    return f ? -(1000 + f.score) : 0;
+  }));
+  const match = hungarian(cost);
+
+  const unfilled = [];
+  open.forEach((i, r) => {
+    const f = fit[r][match[r]];
+    if (!f) return unfilled.push(i);
+    const s = result[i];
+    const keepVariant = s.variant && !s.autoVariant;
+    const variant = keepVariant ? s.variant : f.variant;
+    const build = s.buildId && !s.autoBuild ? null : officialBuild(builds, s.chassis, variant);
+    result[i] = {
       ...s,
-      pilotId: best.top.pilot.id,
-      ...(s.variant ? {} : { variant: best.top.variant, autoVariant: true }),
-      ...(s.buildId || !build ? {} : { buildId: build.id, autoBuild: true }),
+      pilotId: free[match[r]].id,
+      ...(keepVariant ? {} : { variant, autoVariant: true }),
+      ...(s.buildId && !s.autoBuild ? {} : { buildId: build?.id || null, autoBuild: !!build }),
     };
-    used.add(best.top.pilot.id);
-    remaining.delete(best.i);
+  });
+  return { slots: result, unfilled };
+}
+
+// Minimum-cost assignment on a square matrix (Hungarian algorithm). Returns the column picked for each row.
+function hungarian(a) {
+  const n = a.length;
+  const INF = Infinity;
+  const u = new Array(n + 1).fill(0), v = new Array(n + 1).fill(0);
+  const p = new Array(n + 1).fill(0), way = new Array(n + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    p[0] = i;
+    let j0 = 0;
+    const minv = new Array(n + 1).fill(INF), usedCol = new Array(n + 1).fill(false);
+    do {
+      usedCol[j0] = true;
+      const i0 = p[j0];
+      let delta = INF, j1 = 0;
+      for (let j = 1; j <= n; j++) {
+        if (usedCol[j]) continue;
+        const cur = a[i0 - 1][j - 1] - u[i0] - v[j];
+        if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+        if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+      }
+      for (let j = 0; j <= n; j++) {
+        if (usedCol[j]) { u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta;
+      }
+      j0 = j1;
+    } while (p[j0] !== 0);
+    do { const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
   }
-  return { slots: result, unfilled: [...remaining] };
+  const rowCol = new Array(n);
+  for (let j = 1; j <= n; j++) if (p[j]) rowCol[p[j] - 1] = j - 1;
+  return rowCol;
 }

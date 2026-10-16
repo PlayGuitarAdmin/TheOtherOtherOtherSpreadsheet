@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
-import { CaptainNote, ChassisSelect, Field, KindPill } from '../components/ui.jsx';
+import { CaptainNote, ChassisSelect, ClassPill, Field, KindPill } from '../components/ui.jsx';
 import { assignPilots, officialBuild, pickVariant } from '../lib/autofill.js';
 import { useData } from '../lib/data.jsx';
 import { discordText, downloadFile, lineupCsvRows, toCsv } from '../lib/export.js';
-import { lookupVariant, slotMech } from '../lib/mechs.js';
+import { lookupVariant, slotMech, sortSlots } from '../lib/mechs.js';
 import { lineupStats, validateLineup } from '../lib/rules.js';
 import { blankSlots } from './EventsPage.jsx';
 
@@ -128,8 +128,8 @@ function ownedMechs(catalog, hangars, pid) {
 }
 
 // Slot edits compose on a local copy so quick changes in a row never overwrite each other with stale data.
-function useSlots(drop, size, save) {
-  const fromDrop = () => (drop.slots?.length ? drop.slots : blankSlots(size));
+function useSlots(drop, size, save, catalog) {
+  const fromDrop = () => sortSlots(catalog, drop.slots?.length ? drop.slots : blankSlots(size));
   const [slots, setSlots] = useState(fromDrop);
   const ref = useRef(slots);
   const pending = useRef(0);
@@ -138,7 +138,8 @@ function useSlots(drop, size, save) {
     ref.current = fromDrop();
     setSlots(ref.current);
   }, [drop.slots]); // eslint-disable-line react-hooks/exhaustive-deps
-  const write = async (next) => {
+  const write = async (unsorted) => {
+    const next = sortSlots(catalog, unsorted);
     ref.current = next;
     setSlots(next);
     pending.current += 1;
@@ -153,7 +154,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
   const { data, actions, isCaptain, catalog, hangars, pilotsById, rulesetsById, notify } = ctx;
   const ruleset = rulesetsById[event.ruleset_id];
   const rules = ruleset?.rules;
-  const [slots, save, patchSlot, slotsRef] = useSlots(drop, event.team_size, (next) => actions.update('drops', drop.id, { slots: next }));
+  const [slots, save, patchSlot, slotsRef] = useSlots(drop, event.team_size, (next) => actions.update('drops', drop.id, { slots: next }), catalog);
 
   const attendance = data.attendance.filter((a) => a.event_id === event.id);
   const statusOf = (pid) => attendance.find((a) => a.pilot_id === pid)?.status;
@@ -206,13 +207,8 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
   };
 
   const clearPilots = () => {
-    if (!window.confirm('Remove every pilot from this drop? The chassis stay.')) return;
-    save(slotsRef.current.map((s) => ({
-      ...s,
-      pilotId: null,
-      ...(s.autoVariant ? { variant: null, autoVariant: false } : {}),
-      ...(s.autoBuild ? { buildId: null, autoBuild: false } : {}),
-    })));
+    if (!window.confirm('Remove every pilot from this drop? Chassis, variants and builds stay.')) return;
+    save(slotsRef.current.map((s) => ({ ...s, pilotId: null })));
   };
 
   const copyDiscord = async () => {
@@ -301,7 +297,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
             </p>
           )}
           <div className="slot muted small" style={{ borderBottom: '1px solid var(--line)' }}>
-            <span className="n">#</span><span>Lance</span><span>Chassis</span><span>Pilot</span><span>Variant</span><span>Build</span><span />
+            <span className="n">#</span><span>Lance</span><span>Chassis</span><span>Variant</span><span>Class</span><span>Pilot</span><span>Build</span><span />
           </div>
           {slots.map((s, i) => (
             <SlotRow
@@ -404,6 +400,21 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, withPilot, 
         disabled={!editable}
         onChange={(chassis) => onPatch((s) => ({ chassis, ...withPilot({ ...s, chassis, variant: null, buildId: null }, s.pilotId) }))}
       />
+      <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
+        <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ variant: e.target.value || null, autoVariant: false }))}>
+          <option value="">Any variant</option>
+          {variantOptions.map((v) => {
+            const mine = owned.find((m) => m.code === v.code);
+            return (
+              <option key={v.code} value={v.code}>
+                {v.code}{mine ? ' ✓' : ''}{mine?.mastered ? '★' : ''}{v.kind === 'hero' ? ' (hero)' : ''}{v.kind === 'legendary' ? ' (legendary)' : ''}
+              </option>
+            );
+          })}
+        </select>
+        {mech && <KindPill kind={mech.kind} />}
+      </div>
+      <span className="small" style={{ whiteSpace: 'nowrap' }}>{mech ? <><ClassPill wclass={mech.wclass} /> <span className="muted">{mech.tons}t</span></> : <span className="muted">–</span>}</span>
       <select
         value={slot.pilotId || ''}
         disabled={!editable}
@@ -426,20 +437,6 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, withPilot, 
           candidates.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
         )}
       </select>
-      <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-        <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ variant: e.target.value || null, autoVariant: false }))}>
-          <option value="">Any variant</option>
-          {variantOptions.map((v) => {
-            const mine = owned.find((m) => m.code === v.code);
-            return (
-              <option key={v.code} value={v.code}>
-                {v.code}{mine ? ' ✓' : ''}{mine?.mastered ? '★' : ''}{v.kind === 'hero' ? ' (hero)' : ''}{v.kind === 'legendary' ? ' (legendary)' : ''}
-              </option>
-            );
-          })}
-        </select>
-        {mech && <KindPill kind={mech.kind} />}
-      </div>
       <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
         <select value={slot.buildId || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ buildId: e.target.value || null, autoBuild: false }))}>
           <option value="">{slot.chassis ? (builds.length ? 'No build' : 'No builds saved') : '–'}</option>

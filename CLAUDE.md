@@ -39,8 +39,9 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
 - `src/lib/mechs.js`: `buildCatalog`, `lookupVariant` (handles aliases and suffixes like `AS7-D(F)`), and `parseMechPaste`
   (finds variant codes plus hyphen-less hero names anywhere in pasted mwomercs.com text).
 - `src/lib/rules.js`: ruleset model and `validateLineup` (warnings only, never blocks). `breaksCap` is currently unused.
-- `src/lib/autofill.js`: `assignPilots` puts pool pilots into slots that have a chassis and no pilot (greedy, fewest candidates first,
-  scored by favourites, class ranking, the event request and mastery). It never changes a chassis, pilot, variant or build already set.
+- `src/lib/autofill.js`: `assignPilots` puts pool pilots into slots that have a chassis and no pilot. It solves the whole drop at once
+  (Hungarian algorithm: most slots filled, then highest total score from favourites, class ranking, the event request and mastery);
+  slot-by-slot greedy gave a bigs pilot a light while a better-suited pilot sat out. It never changes a chassis, pilot, variant or build already set.
   Variants/builds it (or a pilot pick) fills get `autoVariant`/`autoBuild: true` so they follow the pilot if the pilot changes.
 - `src/lib/export.js`: Discord text (code block) and CSV.
 - `src/pages/*`: one screen each, with hash routing in `App.jsx` (`#/events/:id`, `#/pilots/:id`, …).
@@ -68,6 +69,8 @@ builds, and delete pilots. The UI hides captain controls via `isCaptain`; RLS en
 - Pilot prefs: ranked favourites, "won't play", preferred classes and roles, plus an optional per-event "wants to pilot" note.
 - **Chassis first, then pilots** (Sean, 2026-10-16): captains pick and keep the chassis list for each drop by hand, then pilots are
   assigned to those chassis ("Auto-assign pilots" or by hand). Choosing a pilot never clears the chassis. Everything stays doable by hand.
+  Drop lineups sort by chassis tonnage, then chassis name (`sortSlots`, applied on save and in exports). Columns: Chassis, Variant,
+  Class (read-only), Pilot, Build. "Clear pilots" removes only pilots.
 - Builds: name, link, MWO export code, notes and tags; team (official) or personal. Can be imported from their Google Sheet by paste.
 - Output: everyone sees lineups live in the app, Discord copy/paste, and CSV for Google Sheets.
 - History: win/loss per drop, with stats by pilot, chassis and map.
