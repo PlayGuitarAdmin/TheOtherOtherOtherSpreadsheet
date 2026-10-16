@@ -72,7 +72,8 @@ builds, and delete pilots. The UI hides captain controls via `isCaptain`; RLS en
 
 - GitHub Pages is on, the default branch is `main`, and the Supabase secrets are set.
 - The `VITE_SUPABASE_URL` secret was entered as the REST URL (`…/rest/v1/`); the code now strips that.
-- **Pending:** `supabase/schema.sql` had not been run in the Supabase project yet (the tables were missing), and the captain accounts still need to be created. See `SETUP.md`.
+- `supabase/schema.sql` has been run (19 maps and the "Open (no limits)" ruleset are seeded), and the captain accounts exist.
+  The live site loads from Supabase with no errors.
 
 ## External data
 
