@@ -135,7 +135,17 @@ function PasteImport({ pilot, onDone }) {
     setPicked(new Set(r.found.map((m) => m.code)));
   };
 
+  const [saving, setSaving] = useState(false);
   const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await saveHangar();
+    } finally {
+      setSaving(false);
+    }
+  };
+  const saveHangar = async () => {
     const add = [...picked].filter((c) => !ownedCodes.has(c));
     await actions.insertMany('pilot_mechs', add.map((variant) => ({ pilot_id: pilot.id, variant, mastered: false })));
     let removed = 0;
@@ -208,7 +218,7 @@ function PasteImport({ pilot, onDone }) {
               <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
               Replace my hangar (remove mechs that aren't ticked here)
             </label>
-            <button className="primary" onClick={save} disabled={!picked.size && !replace}>Save to hangar</button>
+            <button className="primary" onClick={save} disabled={saving || (!picked.size && !replace)}>{saving ? 'Saving…' : 'Save to hangar'}</button>
           </>
         )}
       </div>

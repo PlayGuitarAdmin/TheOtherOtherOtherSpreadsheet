@@ -156,18 +156,35 @@ function supabaseBackend(cfg) {
     if (error) throw new Error(error.message);
     return data;
   };
+  // Supabase returns at most 1,000 rows per request, and a full team's hangars are several
+  // thousand rows, so read every table in pages.
+  const PAGE = 1000;
+  async function selectAll(table) {
+    const rows = [];
+    for (let from = 0; ; from += PAGE) {
+      const page = check(await sb.from(table).select('*').order('created_at').order('id').range(from, from + PAGE - 1)) || [];
+      rows.push(...page);
+      if (page.length < PAGE) return rows;
+    }
+  }
+
   return {
     kind: 'supabase',
     client: sb,
     async loadAll() {
-      const results = await Promise.all(TABLES.map((t) => sb.from(t).select('*').order('created_at')));
-      return Object.fromEntries(TABLES.map((t, i) => [t, check(results[i]) || []]));
+      const results = await Promise.all(TABLES.map((t) => selectAll(t)));
+      return Object.fromEntries(TABLES.map((t, i) => [t, results[i]]));
     },
     async insert(table, row) {
       return check(await sb.from(table).insert(row).select().single());
     },
     async insertMany(table, rows) {
-      if (rows.length) check(await sb.from(table).insert(rows));
+      if (!rows.length) return;
+      // Hangar rows are unique per pilot + variant; skip any that already exist instead of failing.
+      const q = table === 'pilot_mechs'
+        ? sb.from(table).upsert(rows, { onConflict: 'pilot_id,variant', ignoreDuplicates: true })
+        : sb.from(table).insert(rows);
+      check(await q);
     },
     async update(table, id, patch) {
       check(await sb.from(table).update(patch).eq('id', id));
