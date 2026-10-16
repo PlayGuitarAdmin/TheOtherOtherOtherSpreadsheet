@@ -23,7 +23,6 @@ create table pilot_mechs (
   created_at timestamptz not null default now(),
   pilot_id uuid not null references pilots(id) on delete cascade,
   variant text not null,
-  mastered boolean not null default false,
   unique (pilot_id, variant)
 );
 

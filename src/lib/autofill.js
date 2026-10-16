@@ -60,10 +60,7 @@ export function assignPilots({ catalog, slots, pool, hangars, rules: rulesIn, re
   const ownedBy = {};
   for (const p of pool) {
     ownedBy[p.id] = (hangars[p.id] || [])
-      .map((h) => {
-        const v = lookupVariant(catalog, h.variant);
-        return v && { ...v, mastered: h.mastered };
-      })
+      .map((h) => lookupVariant(catalog, h.variant))
       .filter(Boolean);
   }
 

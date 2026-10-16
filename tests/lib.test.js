@@ -83,7 +83,7 @@ describe('rules', () => {
 describe('auto-assign pilots', () => {
   const hangars = {
     a: [{ variant: 'DWF-PRIME' }, { variant: 'ACH-PRIME' }],
-    b: [{ variant: 'TBR-PRIME' }, { variant: 'TBR-S', mastered: true }, { variant: 'DWF-A' }],
+    b: [{ variant: 'TBR-PRIME' }, { variant: 'TBR-S' }, { variant: 'DWF-A' }],
     c: [{ variant: 'ACH-A' }, { variant: 'TBR-C' }],
   };
   const pool = [

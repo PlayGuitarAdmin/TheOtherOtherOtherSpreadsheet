@@ -191,7 +191,7 @@ function RequestInput({ value, onSave }) {
 }
 
 function ownedMechs(catalog, hangars, pid) {
-  return pid ? (hangars[pid] || []).map((h) => { const v = lookupVariant(catalog, h.variant); return v && { ...v, mastered: h.mastered }; }).filter(Boolean) : [];
+  return pid ? (hangars[pid] || []).map((h) => { const v = lookupVariant(catalog, h.variant); return v; }).filter(Boolean) : [];
 }
 
 // Slot edits compose on a local copy so quick changes in a row never overwrite each other with stale data.
@@ -465,7 +465,7 @@ export function VariantCell({ slot, owned = [], editable, onPatch }) {
           const mine = owned.find((m) => m.code === v.code);
           return (
             <option key={v.code} value={v.code}>
-              {v.code}{mine ? ' ✓' : ''}{mine?.mastered ? '★' : ''}{v.kind === 'hero' ? ' (hero)' : ''}{v.kind === 'legendary' ? ' (legendary)' : ''}
+              {v.code}{mine ? ' ✓' : ''}{v.kind === 'hero' ? ' (hero)' : ''}{v.kind === 'legendary' ? ' (legendary)' : ''}
             </option>
           );
         })}
