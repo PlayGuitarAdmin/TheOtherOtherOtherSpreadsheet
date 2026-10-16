@@ -42,6 +42,9 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
 - `src/lib/autofill.js`: `assignPilots` puts pool pilots into slots that have a chassis and no pilot. It solves the whole drop at once
   (Hungarian algorithm: most slots filled, then highest total score). Score (Sean, 2026-10-16): favourite chassis/variant flat +50
   (order ignored), class rank 1st–4th +20/14/8/2, event note naming the chassis/variant +60 or its class +30. Mastery is not scored.
+  Playing-time balance (Sean, 2026-10-16): each drop the pilot is already in among the event's earlier drops costs
+  `PLAYED_PENALTY` (25, half a favourite). `dropsPlayed(drops, index)` derives the count from the drops' slots (nothing is stored);
+  the drop pool, pilot pickers (“Name · 2”) and the Attendance tab's Drops column show it.
   Exact ties are broken by a random pilot order drawn fresh on each run (`random` option; tests pass a fixed one);
   slot-by-slot greedy gave a bigs pilot a light while a better-suited pilot sat out. Per Sean it sets **only `pilotId`**: never chassis,
   variant or build (captains pick chassis and variants by hand). A variant set on a slot limits it to pilots who own that variant.

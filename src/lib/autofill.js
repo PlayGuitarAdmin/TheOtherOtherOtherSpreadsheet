@@ -13,8 +13,21 @@ function variantAllowed(rules, v) {
   return true;
 }
 
+// Each drop a pilot has already played in this event costs this many points, so pilots who have sat out get picked first.
+// 25 is half a favourite: two extra drops cancel a favourite, three outweigh a favourite plus their top class.
+export const PLAYED_PENALTY = 25;
+
+// How many drops each pilot is in, over the event's drops before `index` (drops sorted by position).
+export function dropsPlayed(drops, index = drops.length) {
+  const counts = {};
+  for (const d of drops.slice(0, index)) {
+    for (const pid of new Set((d.slots || []).map((s) => s.pilotId).filter(Boolean))) counts[pid] = (counts[pid] || 0) + 1;
+  }
+  return counts;
+}
+
 // How well pilot p fits a slot of this chassis, or null if they can't take it.
-export function pilotFit({ catalog, pilot, chassis, slotVariant, owned, rules, request }) {
+export function pilotFit({ catalog, pilot, chassis, slotVariant, owned, rules, request, played = 0 }) {
   const prefs = pilot.prefs || {};
   let mine = owned.filter((v) => v.chassis === chassis && variantAllowed(rules, v));
   if (slotVariant) mine = mine.filter((v) => v.code === slotVariant);
@@ -36,11 +49,12 @@ export function pilotFit({ catalog, pilot, chassis, slotVariant, owned, rules, r
     if (req.includes(chassis.toLowerCase()) || mine.some((v) => req.includes(v.code.toLowerCase()))) score += 60;
     else if (classesInText(req).includes(c.wclass)) score += 30;
   }
+  score -= PLAYED_PENALTY * played;
 
   return { score };
 }
 
-export function assignPilots({ catalog, slots, pool, hangars, rules: rulesIn, requests = {}, random = Math.random }) {
+export function assignPilots({ catalog, slots, pool, hangars, rules: rulesIn, requests = {}, played = {}, random = Math.random }) {
   const rules = normalizeRules(rulesIn);
   const result = slots.map((s) => ({ ...s }));
   const ownedBy = {};
@@ -59,17 +73,18 @@ export function assignPilots({ catalog, slots, pool, hangars, rules: rulesIn, re
   // fit[r][c]: pilot c in open slot r. A variant or build that only followed an earlier pilot isn't binding.
   const fit = open.map((i) => {
     const s = result[i];
-    return free.map((p) => pilotFit({ catalog, pilot: p, chassis: s.chassis, slotVariant: s.variant, owned: ownedBy[p.id], rules, request: requests[p.id] }));
+    return free.map((p) => pilotFit({ catalog, pilot: p, chassis: s.chassis, slotVariant: s.variant, owned: ownedBy[p.id], rules, request: requests[p.id], played: played[p.id] || 0 }));
   });
 
-  // Best overall lineup, not slot by slot: fill as many slots as possible, then maximise the total preference score.
+  // Best overall lineup, not slot by slot: fill as many slots as possible, then maximise the total preference score
+  // (which includes the drops-played penalty).
   // Ties are broken by a random pilot order, drawn fresh on each run. The tie-breaker adds under 1 point in total,
-  // so it never outweighs a real preference.
+  // so it never outweighs a real preference. The 10000 per filled slot stays far above any score, penalties included.
   const n = Math.max(open.length, free.length);
   const tie = free.map(() => (random() * 0.9) / (open.length || 1));
   const cost = Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => {
     const f = fit[r]?.[c];
-    return f ? -(1000 + f.score + tie[c]) : 0;
+    return f ? -(10000 + f.score + tie[c]) : 0;
   }));
   const match = hungarian(cost);
 

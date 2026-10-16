@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_VARIANTS, classesInText } from '../src/data/catalog.js';
-import { assignPilots } from '../src/lib/autofill.js';
+import { assignPilots, dropsPlayed } from '../src/lib/autofill.js';
 import { buildCatalog, lookupVariant, parseMechPaste, sortSlots } from '../src/lib/mechs.js';
 import { grimBuildsFor, indexGrimBuilds, parseGrimMechs } from '../src/lib/grimmechs.js';
 import { emptyRules, validateLineup } from '../src/lib/rules.js';
@@ -134,6 +134,32 @@ describe('auto-assign pilots', () => {
     expect(pick(() => [0.9, 0.1][k++ % 2])).toBe('x');
     k = 0;
     expect(pick(() => [0.1, 0.9][k++ % 2])).toBe('y');
+  });
+
+  it('counts drops played in earlier drops only, once per drop', () => {
+    const drops = [
+      { slots: [{ pilotId: 'a' }, { pilotId: 'b' }, { pilotId: 'a' }] },
+      { slots: [{ pilotId: 'a' }, { pilotId: null }] },
+      { slots: [{ pilotId: 'c' }] },
+    ];
+    expect(dropsPlayed(drops, 2)).toEqual({ a: 2, b: 1 });
+    expect(dropsPlayed(drops)).toEqual({ a: 2, b: 1, c: 1 });
+    expect(dropsPlayed(drops, 0)).toEqual({});
+  });
+
+  it('prefers pilots who have played fewer drops, growing with each drop', () => {
+    const h = { x: [{ variant: 'DWF-PRIME' }], y: [{ variant: 'DWF-A' }] };
+    const p = [{ id: 'x', prefs: { favorites: ['Dire Wolf'] } }, { id: 'y', prefs: {} }];
+    const pick = (played) => assignPilots({ catalog, slots: [{ chassis: 'Dire Wolf' }], pool: p, hangars: h, rules: emptyRules(), played, random: () => 0 }).slots[0].pilotId;
+    expect(pick({})).toBe('x');
+    expect(pick({ x: 1 })).toBe('x');
+    expect(pick({ x: 3 })).toBe('y');
+    expect(pick({ x: 3, y: 2 })).toBe('x');
+  });
+
+  it('still fills every slot it can, however many drops pilots have played', () => {
+    const out = run([{ chassis: 'Dire Wolf' }, { chassis: 'Timber Wolf' }], { played: { a: 30, b: 30, c: 0 } }).slots;
+    expect(out.map((s) => s.pilotId)).toEqual(['a', 'b']);
   });
 
   it('gives a contested chassis to the pilot who fits it better', () => {

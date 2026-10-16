@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
 import { CaptainNote, ChassisSelect, ClassPill, Field, KindPill } from '../components/ui.jsx';
-import { assignPilots } from '../lib/autofill.js';
+import { assignPilots, dropsPlayed, PLAYED_PENALTY } from '../lib/autofill.js';
 import { useData } from '../lib/data.jsx';
 import { discordText, downloadFile, lineupCsvRows, slotBuild, toCsv } from '../lib/export.js';
 import { grimBuildsFor } from '../lib/grimmechs.js';
@@ -51,7 +51,7 @@ export default function EventPage({ id }) {
         <button className={activeTab === 'share' ? 'active' : ''} onClick={() => setTab('share')}>Share / Export</button>
         {isCaptain && <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>Event settings</button>}
       </div>
-      {activeTab === 'attendance' && <AttendanceTab event={event} />}
+      {activeTab === 'attendance' && <AttendanceTab event={event} drops={drops} />}
       {activeTab === 'share' && <ShareTab event={event} drops={drops} />}
       {activeTab === 'settings' && <EventSettings event={event} drops={drops} />}
       {drops.map((d, i) => activeTab === d.id && <DropEditor key={d.id} event={event} drop={d} index={i} drops={drops} onDeleted={() => setTab('attendance')} />)}
@@ -59,7 +59,7 @@ export default function EventPage({ id }) {
   );
 }
 
-function AttendanceTab({ event }) {
+function AttendanceTab({ event, drops }) {
   const { pilots, data, actions, catalog, hangars } = useData();
   const active = pilots.filter((p) => p.active !== false);
   const rowFor = (p) => data.attendance.find((a) => a.event_id === event.id && a.pilot_id === p.id);
@@ -73,6 +73,7 @@ function AttendanceTab({ event }) {
     if (row) await actions.update('attendance', row.id, { request });
     else await actions.insert('attendance', { event_id: event.id, pilot_id: p.id, status: 'yes', request });
   };
+  const played = dropsPlayed(drops);
   const counts = { yes: 0, maybe: 0, no: 0 };
   active.forEach((p) => { const s = rowFor(p)?.status; if (s) counts[s] += 1; });
   return (
@@ -84,7 +85,7 @@ function AttendanceTab({ event }) {
         <span className="muted small">{active.length - counts.yes - counts.maybe - counts.no} haven't answered. Only "Yes" pilots appear in the drop pools.</span>
       </div>
       <table>
-        <thead><tr><th>Pilot</th><th>Attending?</th><th>Wants to pilot (optional)</th><th>Hangar</th></tr></thead>
+        <thead><tr><th>Pilot</th><th>Attending?</th><th>Wants to pilot (optional)</th><th>Hangar</th><th title="How many of this event's drops they're in">Drops</th></tr></thead>
         <tbody>
           {active.map((p) => {
             const r = rowFor(p);
@@ -101,6 +102,7 @@ function AttendanceTab({ event }) {
                 <td className="small muted">
                   {WEIGHT_CLASSES.map((c) => `${new Set(owned.filter((m) => m.wclass === c).map((m) => m.chassis)).size}${c[0]}`).join(' · ')}
                 </td>
+                <td>{played[p.id] || 0}</td>
               </tr>
             );
           })}
@@ -165,6 +167,8 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
   const pool = attending.filter((p) => !assigned.has(p.id));
   const hiddenMaybe = ctx.pilots.filter((p) => statusOf(p.id) === 'maybe').length;
   const ownedBy = Object.fromEntries(ctx.pilots.map((p) => [p.id, ownedMechs(catalog, hangars, p.id)]));
+  // Drops each pilot is in before this one, so playing time evens out over the event.
+  const played = dropsPlayed(drops, index);
 
   const warnings = validateLineup(catalog, slots, rules);
   const st = lineupStats(catalog, slots);
@@ -183,7 +187,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
   const runAssign = async () => {
     const requests = Object.fromEntries(attendance.map((a) => [a.pilot_id, a.request]));
     const cur = slotsRef.current;
-    const { slots: next, unfilled } = assignPilots({ catalog, slots: cur, pool, hangars, rules, requests });
+    const { slots: next, unfilled } = assignPilots({ catalog, slots: cur, pool, hangars, rules, requests, played });
     const added = next.filter((s, i) => s.pilotId && !cur[i].pilotId).length;
     await save(next);
     const missed = unfilled.map((i) => next[i].variant || next[i].chassis);
@@ -280,6 +284,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
             <p className="muted small" style={{ marginTop: 0 }}>
               1. Pick the chassis for each slot. 2. Auto-assign pilots, or pick them by hand. Auto-assign only fills slots with a chassis and no pilot
               {noChassis ? ` (${noChassis} slot${noChassis === 1 ? ' has' : 's have'} no chassis yet)` : ''}.
+              {index > 0 && ` It favours pilots who've played fewer of this event's earlier drops (−${PLAYED_PENALTY} per drop); the number after each pilot's name is their count.`}
             </p>
           )}
           <div className="slot muted small" style={{ borderBottom: '1px solid var(--line)' }}>
@@ -296,6 +301,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
               editable={isCaptain}
               onPatch={(fn) => patchSlot(i, fn)}
               requestOf={requestOf}
+              played={played}
             />
           ))}
         </div>
@@ -333,6 +339,7 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
               return (
                 <div key={p.id} className="pilot" onClick={() => isCaptain && placeFromPool(p)} title={isCaptain ? 'Click to put in the first open slot with a chassis they own' : ''}>
                   <div className="row spread"><b>{p.name}</b><span className="muted small">{counts}</span></div>
+                  <div className="small" style={{ color: played[p.id] ? 'var(--muted)' : 'var(--gold)' }}>{playedText(played[p.id], index)}</div>
                   {dropChassis.length > 0 && (
                     <div className="small" style={{ color: fits.length ? 'var(--cyan)' : 'var(--muted)' }}>
                       {fits.length ? `Owns: ${fits.join(', ')}` : 'Owns none of this drop\'s chassis'}
@@ -359,7 +366,12 @@ function NotesInput({ value, onSave, disabled }) {
   return <input value={v} disabled={disabled} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v)} style={{ width: '100%' }} />;
 }
 
-function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf }) {
+function playedText(n = 0, index) {
+  if (!index) return 'First drop of the event';
+  return n ? `In ${n} of the ${index} earlier drop${index === 1 ? '' : 's'}` : `Hasn't dropped yet (of ${index})`;
+}
+
+function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf, played }) {
   const { catalog, pilotsById, grim } = useData();
   const pilot = pilotsById[slot.pilotId];
   const owned = slot.pilotId ? ownedBy[slot.pilotId] || [] : [];
@@ -412,16 +424,16 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf }
         {slot.chassis ? (
           <>
             <optgroup label={fit.length ? `Own a ${slot.chassis}` : `Nobody available owns a ${slot.chassis}`}>
-              {fit.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {fit.map((p) => <option key={p.id} value={p.id}>{p.name} · {played[p.id] || 0}</option>)}
             </optgroup>
             {rest.length > 0 && (
               <optgroup label="Don't own it">
-                {rest.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {rest.map((p) => <option key={p.id} value={p.id}>{p.name} · {played[p.id] || 0}</option>)}
               </optgroup>
             )}
           </>
         ) : (
-          candidates.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
+          candidates.map((p) => <option key={p.id} value={p.id}>{p.name} · {played[p.id] || 0}</option>)
         )}
       </select>
       <BuildCell slot={slot} editable={editable} onPatch={onPatch} />
