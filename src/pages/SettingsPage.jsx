@@ -38,11 +38,11 @@ export default function SettingsPage() {
       setBusy(false);
     }
   };
-  const backup = () => downloadFile(`drop-deck-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), 'application/json');
+  const backup = () => downloadFile(`other-other-other-spreadsheet-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), 'application/json');
   const restore = async (file) => {
     if (!file) return;
     const parsed = JSON.parse(await file.text());
-    if (!TABLES.every((t) => Array.isArray(parsed[t] || []))) return notify('That file is not a Drop Deck backup.', 'error');
+    if (!TABLES.every((t) => Array.isArray(parsed[t] || []))) return notify('That file is not a backup from this app.', 'error');
     if (!window.confirm('Replace all data in this browser with the backup?')) return;
     await actions.replaceAll(parsed);
     notify('Backup restored.');

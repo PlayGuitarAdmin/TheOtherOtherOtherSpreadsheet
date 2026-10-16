@@ -54,8 +54,8 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand">
           <div className="suit"><span style={{ color: 'var(--text)' }}>♠</span> ♥ <span style={{ color: 'var(--text)' }}>♣</span> ♦</div>
-          <div className="name">ACES WILD</div>
-          <div className="sub">Drop Deck</div>
+          <div className="name">THE OTHER OTHER OTHER SPREADSHEET</div>
+          <div className="sub">Aces Wild</div>
         </div>
         <nav className="nav">
           {NAV.map(([key, label]) => (

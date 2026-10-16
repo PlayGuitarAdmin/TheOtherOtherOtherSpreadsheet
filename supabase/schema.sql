@@ -1,4 +1,4 @@
--- Drop Deck database schema for Supabase.
+-- The Other Other Other Spreadsheet: database schema for Supabase.
 -- Paste this whole file into Supabase -> SQL Editor -> New query, then Run.
 -- Safe to run once on a new project.
 --

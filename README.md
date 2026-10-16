@@ -1,4 +1,4 @@
-# ♠ Drop Deck · Aces Wild
+# ♠ The Other Other Other Spreadsheet · Aces Wild
 
 A team organizer for competitive **MechWarrior Online**: who's attending, which mechs each pilot owns,
 which builds to run, and who drops in what on each map, with tournament rules checked as you go.

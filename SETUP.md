@@ -1,4 +1,4 @@
-# Setting up Drop Deck for the team
+# Setting up The Other Other Other Spreadsheet for the team
 
 The app works straight away in **offline demo mode** (data stays in your browser). To share it with
 the team you need two free things: a **Supabase** database and a **GitHub Pages** site. This takes
@@ -8,7 +8,7 @@ about 15 minutes.
 
 1. Go to <https://supabase.com>, click **Start your project**, and sign in with GitHub.
 2. Click **New project**.
-   - Name: `aces-wild-drop-deck` (anything works).
+   - Name: `other-other-other-spreadsheet` (anything works).
    - Database password: click **Generate**, and save it in your password manager. The app never needs it.
    - Region: the one closest to most of your pilots.
    - Plan: **Free**.

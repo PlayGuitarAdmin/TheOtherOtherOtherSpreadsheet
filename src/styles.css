@@ -37,7 +37,7 @@ h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spa
 .sidebar { background: #071316; border-right: 1px solid var(--line); padding: 18px 0; position: sticky; top: 0; height: 100vh; }
 .brand { padding: 0 18px 18px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
 .brand .suit { color: var(--red); font-size: 26px; line-height: 1; }
-.brand .name { font-family: 'Play', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 0.14em; color: var(--gold); }
+.brand .name { font-family: 'Play', sans-serif; font-weight: 700; font-size: 16px; line-height: 1.2; letter-spacing: 0.08em; color: var(--gold); }
 .brand .sub { color: var(--cyan); font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; }
 .nav a { display: block; padding: 9px 18px; color: var(--text); border-left: 3px solid transparent; }
 .nav a:hover { background: var(--panel); text-decoration: none; }
