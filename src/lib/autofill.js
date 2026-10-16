@@ -2,12 +2,8 @@ import { classesInText } from '../data/catalog.js';
 import { lookupVariant } from './mechs.js';
 import { normalizeRules } from './rules.js';
 
-// Captains choose the chassis for each slot; this fills in pilots. Only slots that have a
-// chassis and no pilot are touched: chassis, pilots, variants and builds already set are kept.
-
-function indexIn(list, mech) {
-  return (list || []).findIndex((x) => x === mech.code || x === mech.chassis || x === mech.baseCode);
-}
+// Captains choose the chassis (and variants) for each slot; this fills in pilots and nothing else.
+// Only slots that have a chassis and no pilot are touched.
 
 // Variants a ruleset would reject, so a pilot isn't put in a mech they can only bring illegally.
 function variantAllowed(rules, v) {
@@ -15,22 +11,6 @@ function variantAllowed(rules, v) {
   if (rules.banLegendaryHeroes && v.lgdHero) return false;
   if (rules.bannedVariants.includes(v.code) || (v.baseCode && rules.bannedVariants.includes(v.baseCode))) return false;
   return true;
-}
-
-// Which of a pilot's variants (all of one chassis) to bring: a favourite, then a non-hero.
-export function pickVariant(prefs, mine) {
-  if (!mine.length) return null;
-  return [...mine].sort((a, b) => {
-    const fa = indexIn(prefs?.favorites, a), fb = indexIn(prefs?.favorites, b);
-    if ((fa >= 0) !== (fb >= 0)) return fa >= 0 ? -1 : 1;
-    if (fa !== fb) return fa - fb;
-    return (a.kind === 'hero') - (b.kind === 'hero');
-  })[0].code;
-}
-
-export function officialBuild(builds, chassis, variant) {
-  const official = builds.filter((b) => b.official && b.chassis === chassis);
-  return official.find((b) => variant && b.variant === variant) || official.find((b) => !b.variant) || official[0] || null;
 }
 
 // How well pilot p fits a slot of this chassis, or null if they can't take it.
@@ -57,11 +37,10 @@ export function pilotFit({ catalog, pilot, chassis, slotVariant, owned, rules, r
     else if (classesInText(req).includes(c.wclass)) score += 30;
   }
 
-  const variant = slotVariant || pickVariant(prefs, mine);
-  return { score, variant };
+  return { score };
 }
 
-export function assignPilots({ catalog, slots, pool, hangars, builds = [], rules: rulesIn, requests = {}, random = Math.random }) {
+export function assignPilots({ catalog, slots, pool, hangars, rules: rulesIn, requests = {}, random = Math.random }) {
   const rules = normalizeRules(rulesIn);
   const result = slots.map((s) => ({ ...s }));
   const ownedBy = {};
@@ -80,8 +59,7 @@ export function assignPilots({ catalog, slots, pool, hangars, builds = [], rules
   // fit[r][c]: pilot c in open slot r. A variant or build that only followed an earlier pilot isn't binding.
   const fit = open.map((i) => {
     const s = result[i];
-    const slotVariant = s.autoVariant ? null : s.variant;
-    return free.map((p) => pilotFit({ catalog, pilot: p, chassis: s.chassis, slotVariant, owned: ownedBy[p.id], rules, request: requests[p.id] }));
+    return free.map((p) => pilotFit({ catalog, pilot: p, chassis: s.chassis, slotVariant: s.variant, owned: ownedBy[p.id], rules, request: requests[p.id] }));
   });
 
   // Best overall lineup, not slot by slot: fill as many slots as possible, then maximise the total preference score.
@@ -99,16 +77,7 @@ export function assignPilots({ catalog, slots, pool, hangars, builds = [], rules
   open.forEach((i, r) => {
     const f = fit[r][match[r]];
     if (!f) return unfilled.push(i);
-    const s = result[i];
-    const keepVariant = s.variant && !s.autoVariant;
-    const variant = keepVariant ? s.variant : f.variant;
-    const build = s.buildId && !s.autoBuild ? null : officialBuild(builds, s.chassis, variant);
-    result[i] = {
-      ...s,
-      pilotId: free[match[r]].id,
-      ...(keepVariant ? {} : { variant, autoVariant: true }),
-      ...(s.buildId && !s.autoBuild ? {} : { buildId: build?.id || null, autoBuild: !!build }),
-    };
+    result[i] = { ...result[i], pilotId: free[match[r]].id };
   });
   return { slots: result, unfilled };
 }

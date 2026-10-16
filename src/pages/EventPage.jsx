@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CLASS_GROUPS, WEIGHT_CLASSES } from '../data/catalog.js';
 import { CaptainNote, ChassisSelect, ClassPill, Field, KindPill } from '../components/ui.jsx';
-import { assignPilots, officialBuild, pickVariant } from '../lib/autofill.js';
+import { assignPilots } from '../lib/autofill.js';
 import { useData } from '../lib/data.jsx';
 import { discordText, downloadFile, lineupCsvRows, toCsv } from '../lib/export.js';
 import { lookupVariant, slotMech, sortSlots } from '../lib/mechs.js';
@@ -170,34 +170,19 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
   const openChassis = slots.filter((s) => s.chassis && !s.pilotId).length;
   const noChassis = slots.filter((s) => !s.chassis).length;
 
-  // Putting a pilot in a slot keeps its chassis; the variant and build follow the pilot unless a captain chose them.
-  const withPilot = (s, pilotId) => {
-    const next = { pilotId };
-    const prefs = pilotsById[pilotId]?.prefs;
-    if (!s.variant || s.autoVariant) {
-      const v = pilotId && s.chassis ? pickVariant(prefs, ownedBy[pilotId].filter((m) => m.chassis === s.chassis)) : null;
-      Object.assign(next, { variant: v, autoVariant: !!v });
-    }
-    if (!s.buildId || s.autoBuild) {
-      const b = s.chassis && officialBuild(data.builds, s.chassis, next.variant ?? s.variant);
-      Object.assign(next, { buildId: b?.id || null, autoBuild: !!b });
-    }
-    return next;
-  };
-
   const placeFromPool = (pilot) => {
     const cur = slotsRef.current;
     const owns = new Set(ownedBy[pilot.id].map((m) => m.chassis));
     let i = cur.findIndex((s) => !s.pilotId && s.chassis && owns.has(s.chassis));
     if (i < 0) i = cur.findIndex((s) => !s.pilotId);
     if (i < 0) return notify('All slots are full.', 'error');
-    patchSlot(i, (s) => withPilot(s, pilot.id));
+    patchSlot(i, () => ({ pilotId: pilot.id }));
   };
 
   const runAssign = async () => {
     const requests = Object.fromEntries(attendance.map((a) => [a.pilot_id, a.request]));
     const cur = slotsRef.current;
-    const { slots: next, unfilled } = assignPilots({ catalog, slots: cur, pool, hangars, builds: data.builds, rules, requests });
+    const { slots: next, unfilled } = assignPilots({ catalog, slots: cur, pool, hangars, rules, requests });
     const added = next.filter((s, i) => s.pilotId && !cur[i].pilotId).length;
     await save(next);
     const missed = unfilled.map((i) => next[i].variant || next[i].chassis);
@@ -309,7 +294,6 @@ function DropEditor({ event, drop, index, drops, onDeleted }) {
               ownedBy={ownedBy}
               editable={isCaptain}
               onPatch={(fn) => patchSlot(i, fn)}
-              withPilot={withPilot}
               requestOf={requestOf}
             />
           ))}
@@ -374,7 +358,7 @@ function NotesInput({ value, onSave, disabled }) {
   return <input value={v} disabled={disabled} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onSave(v)} style={{ width: '100%' }} />;
 }
 
-function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, withPilot, requestOf }) {
+function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, requestOf }) {
   const { catalog, pilotsById, data } = useData();
   const pilot = pilotsById[slot.pilotId];
   const owned = slot.pilotId ? ownedBy[slot.pilotId] || [] : [];
@@ -398,10 +382,10 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, withPilot, 
       <ChassisSelect
         value={slot.chassis}
         disabled={!editable}
-        onChange={(chassis) => onPatch((s) => ({ chassis, ...withPilot({ ...s, chassis, variant: null, buildId: null }, s.pilotId) }))}
+        onChange={(chassis) => onPatch(() => ({ chassis, variant: null, buildId: null }))}
       />
       <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-        <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ variant: e.target.value || null, autoVariant: false }))}>
+        <select value={slot.variant || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ variant: e.target.value || null }))}>
           <option value="">Any variant</option>
           {variantOptions.map((v) => {
             const mine = owned.find((m) => m.code === v.code);
@@ -419,7 +403,7 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, withPilot, 
         value={slot.pilotId || ''}
         disabled={!editable}
         title={slot.pilotId && requestOf(slot.pilotId) ? `Wants: ${requestOf(slot.pilotId)}` : ''}
-        onChange={(e) => onPatch((s) => withPilot(s, e.target.value || null))}
+        onChange={(e) => onPatch(() => ({ pilotId: e.target.value || null }))}
       >
         <option value="">— open —</option>
         {slot.chassis ? (
@@ -438,7 +422,7 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, withPilot, 
         )}
       </select>
       <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-        <select value={slot.buildId || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ buildId: e.target.value || null, autoBuild: false }))}>
+        <select value={slot.buildId || ''} disabled={!editable || !slot.chassis} onChange={(e) => onPatch(() => ({ buildId: e.target.value || null }))}>
           <option value="">{slot.chassis ? (builds.length ? 'No build' : 'No builds saved') : '–'}</option>
           {builds.map((b) => <option key={b.id} value={b.id}>{b.official ? '★ ' : ''}{b.name}{b.variant ? ` (${b.variant})` : ''}</option>)}
         </select>
@@ -446,7 +430,7 @@ function SlotRow({ i, slot, flags, pool, ownedBy, editable, onPatch, withPilot, 
           <a href={data.builds.find((b) => b.id === slot.buildId).link} target="_blank" rel="noreferrer" title="Open build">↗</a>
         )}
       </div>
-      {editable ? <button className="link" title="Clear slot" onClick={() => onPatch(() => ({ pilotId: null, chassis: null, variant: null, autoVariant: false, buildId: null, autoBuild: false }))}>×</button> : <span />}
+      {editable ? <button className="link" title="Clear slot" onClick={() => onPatch(() => ({ pilotId: null, chassis: null, variant: null, buildId: null }))}>×</button> : <span />}
       {flags.length > 0 && <div className="flags">⚠ {flags.join('; ')}</div>}
     </div>
   );

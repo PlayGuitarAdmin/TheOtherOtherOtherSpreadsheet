@@ -89,7 +89,7 @@ describe('auto-assign pilots', () => {
     { id: 'b', prefs: {} },
     { id: 'c', prefs: { wont: ['Timber Wolf'] } },
   ];
-  const run = (slots, opts = {}) => assignPilots({ catalog, slots, pool, hangars, builds: [], rules: emptyRules(), ...opts });
+  const run = (slots, opts = {}) => assignPilots({ catalog, slots, pool, hangars, rules: emptyRules(), ...opts });
 
   it('only fills slots that have a chassis and no pilot, and changes nothing else', () => {
     const slots = [
@@ -99,10 +99,10 @@ describe('auto-assign pilots', () => {
       { pilotId: null, chassis: 'Timber Wolf', variant: null },
     ];
     const { slots: out, unfilled } = run(slots);
-    expect(out[0]).toMatchObject({ pilotId: 'a', chassis: 'Dire Wolf', variant: 'DWF-PRIME' });
+    expect(out[0]).toEqual({ ...slots[0], pilotId: 'a' });
     expect(out[1]).toEqual(slots[1]);
     expect(out[2]).toEqual(slots[2]);
-    expect(out[3]).toMatchObject({ pilotId: 'b', chassis: 'Timber Wolf', variant: 'TBR-PRIME' });
+    expect(out[3]).toEqual({ ...slots[3], pilotId: 'b' });
     expect(unfilled).toEqual([]);
   });
 
@@ -123,11 +123,6 @@ describe('auto-assign pilots', () => {
     const p = [{ id: 'b', prefs: { classes: ['Assault', 'Heavy', 'Light'] } }, { id: 'c', prefs: {} }, { id: 'd', prefs: {} }];
     const out = assignPilots({ catalog, slots: [{ chassis: 'Raven' }, { chassis: 'Stone Rhino' }], pool: p, hangars: h, rules: emptyRules() }).slots;
     expect(out.map((s) => s.pilotId)).toEqual(['c', 'b']);
-  });
-
-  it('treats a variant that only followed an earlier pilot as open', () => {
-    const { slots: out } = run([{ pilotId: null, chassis: 'Timber Wolf', variant: 'TBR-C', autoVariant: true }]);
-    expect(out[0]).toMatchObject({ pilotId: 'b', variant: 'TBR-PRIME' });
   });
 
   it('gives favourites a flat bonus and breaks exact ties at random', () => {
@@ -176,7 +171,7 @@ describe('weight class shorthand and preferences', () => {
     const hangars = { a: [{ variant: 'DWF-PRIME' }, { variant: 'ACH-PRIME' }, { variant: 'NVA-PRIME' }] };
     const slots = [{ pilotId: null, chassis: 'Dire Wolf' }, { pilotId: null, chassis: 'Nova' }, { pilotId: null, chassis: 'Arctic Cheetah' }];
     const run = (prefs, requests = {}) => {
-      const out = assignPilots({ catalog, slots, pool: [{ id: 'a', prefs }], hangars, builds: [], rules: emptyRules(), requests }).slots;
+      const out = assignPilots({ catalog, slots, pool: [{ id: 'a', prefs }], hangars, rules: emptyRules(), requests }).slots;
       return out.find((s) => s.pilotId)?.chassis;
     };
     expect(run({ classes: ['Medium', 'Assault'] })).toBe('Nova');

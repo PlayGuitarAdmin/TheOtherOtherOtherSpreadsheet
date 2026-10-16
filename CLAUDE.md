@@ -43,8 +43,9 @@ Run `npm test` and `npm run build` before pushing. Desktop only (min width 1100p
   (Hungarian algorithm: most slots filled, then highest total score). Score (Sean, 2026-10-16): favourite chassis/variant flat +50
   (order ignored), class rank 1st–4th +20/14/8/2, event note naming the chassis/variant +60 or its class +30. Mastery is not scored.
   Exact ties are broken by a random pilot order drawn fresh on each run (`random` option; tests pass a fixed one);
-  slot-by-slot greedy gave a bigs pilot a light while a better-suited pilot sat out. It never changes a chassis, pilot, variant or build already set.
-  Variants/builds it (or a pilot pick) fills get `autoVariant`/`autoBuild: true` so they follow the pilot if the pilot changes.
+  slot-by-slot greedy gave a bigs pilot a light while a better-suited pilot sat out. Per Sean it sets **only `pilotId`**: never chassis,
+  variant or build (captains pick chassis and variants by hand). A variant set on a slot limits it to pilots who own that variant.
+  Picking a pilot by hand also sets only the pilot. Older slots may carry stray `autoVariant`/`autoBuild` flags; they're ignored.
 - `src/lib/export.js`: Discord text (code block) and CSV.
 - `src/pages/*`: one screen each, with hash routing in `App.jsx` (`#/events/:id`, `#/pilots/:id`, …).
 - `supabase/schema.sql`: tables, RLS and seed data. Changing table columns means updating this and the code together.
