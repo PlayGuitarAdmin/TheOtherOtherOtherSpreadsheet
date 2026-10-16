@@ -21,6 +21,15 @@ export function buildCatalog(customRows = []) {
   }
   const variants = [...byCode.values()].map((v) => ({ ...v, wclass: weightClass(v.tons) }));
   for (const v of variants) byCode.set(v.code, v);
+  // Hero short codes ("RVN-H" for HUGINN) resolve to the hero.
+  const aliases = new Map();
+  for (const v of variants) if (v.alias && !byCode.has(v.alias)) aliases.set(v.alias, v.code);
+  // Variants whose name has no dash (mostly heroes, e.g. "HUGINN", "THE BOAR'S HEAD") need
+  // their own search when parsing pasted text. Longest first so "GRID IRON LTD" beats "GRID IRON".
+  const names = variants
+    .filter((v) => !v.code.includes('-'))
+    .map((v) => v.code)
+    .sort((a, b) => b.length - a.length);
   const chassisMap = new Map();
   for (const v of variants) {
     if (!chassisMap.has(v.chassis)) {
@@ -29,27 +38,32 @@ export function buildCatalog(customRows = []) {
     chassisMap.get(v.chassis).variants.push(v);
   }
   const chassis = [...chassisMap.values()].sort((a, b) => a.tons - b.tons || a.name.localeCompare(b.name));
-  return { byCode, variants, chassis, chassisByName: chassisMap };
+  return { byCode, aliases, names, variants, chassis, chassisByName: chassisMap };
 }
 
-const SUFFIX = /^(.*?)\s?\(([A-Z0-9]{1,3})\)$/;
+const SUFFIX = /^(.*?)\s?\(([A-Z0-9]{1,4})\)$/;
 
 // Look up a variant code. Special variants like "AS7-D(F)" resolve to their base
-// variant's chassis and tonnage, with kind "champion" for (C) and "special" otherwise.
+// variant's chassis and tonnage, with kind "champion" for (C), "legendary" for (L)/(LGD) and "special" otherwise.
 export function lookupVariant(catalog, rawCode) {
   if (!rawCode) return null;
   const code = String(rawCode).toUpperCase().replace(/\s+\(/, '(').trim();
-  const exact = catalog.byCode.get(code);
+  const exact = catalog.byCode.get(code) || catalog.byCode.get(catalog.aliases?.get(code));
   if (exact) return exact;
   const m = code.match(SUFFIX);
   if (m) {
     const base = catalog.byCode.get(m[1]);
-    if (base) return { ...base, code, kind: m[2] === 'C' ? 'champion' : 'special', baseCode: base.code };
+    if (base) {
+      const kind = m[2] === 'C' ? 'champion' : m[2] === 'L' || m[2] === 'LGD' ? 'legendary' : 'special';
+      return { ...base, code, kind, baseCode: base.code };
+    }
   }
   return null;
 }
 
-const TOKEN = /[A-Z0-9]+(?:-[A-Z0-9]+)+(?:\s?\([A-Z0-9]{1,3}\))?/g;
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const TOKEN = /[A-Z0-9]+(?:-[A-Z0-9]+)+(?:\s?\([A-Z0-9]{1,4}\))?/g;
 
 // Find every known variant code in pasted text (e.g. a copy of the
 // mwomercs.com profile Mech Stats page). Layout independent on purpose.
@@ -68,6 +82,15 @@ export function parseMechPaste(text, catalog) {
     }
     if (hit) found.set(hit.code, hit);
     else if (/^[A-Z]{2,5}\d*-[A-Z0-9]/.test(token) && !/^\d/.test(token)) unknown.add(token);
+  }
+  let rest = upper;
+  for (const name of catalog.names || []) {
+    const re = new RegExp(`(?<![A-Z0-9'])${escapeRe(name)}(?:\\s?\\(([A-Z0-9]{1,4})\\))?(?![A-Z0-9])`, 'g');
+    for (const m of rest.matchAll(re)) {
+      const hit = lookupVariant(catalog, m[1] ? `${name}(${m[1]})` : name) || lookupVariant(catalog, name);
+      if (hit) found.set(hit.code, hit);
+    }
+    rest = rest.replace(re, ' ');
   }
   return { found: [...found.values()], unknown: [...unknown] };
 }

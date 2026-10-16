@@ -1,22 +1,24 @@
-/* Aces Wild palette. Change these variables to retheme the whole app. */
+/* Aces Wild palette, taken from the-aces.com: dark teal, amber, cyan and red.
+   Change these variables to retheme the whole app. */
 :root {
-  --bg: #0b0b0d;
-  --panel: #16161a;
-  --panel-2: #1e1e24;
-  --line: #2c2c34;
-  --text: #ece9e2;
-  --muted: #9a968c;
-  --red: #c8102e;
-  --red-dim: #5a0d18;
-  --gold: #d4af37;
-  --gold-dim: #4a3d14;
+  --bg: #0a1a1d;
+  --panel: #0f2428;
+  --panel-2: #143038;
+  --line: #21474f;
+  --text: #e4e0e0;
+  --muted: #8ea7aa;
+  --red: #c40000;
+  --red-dim: #4a0a0a;
+  --gold: #ffaa00;
+  --gold-dim: #3a2800;
+  --cyan: #00e5ff;
   --green: #4caf6a;
   --warn: #e0a030;
   --light: #5fb3d9;
   --medium: #6cc070;
   --heavy: #e0a030;
   --assault: #d9534f;
-  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  font-family: 'Open Sans', 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
   color: var(--text);
   background: var(--bg);
@@ -24,19 +26,19 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); min-width: 1100px; }
-a { color: var(--gold); text-decoration: none; }
+a { color: var(--cyan); text-decoration: none; }
 a:hover { text-decoration: underline; }
-h1, h2, h3 { margin: 0 0 12px; font-weight: 600; letter-spacing: 0.02em; }
+h1, h2, h3 { margin: 0 0 12px; font-weight: 700; letter-spacing: 0.04em; font-family: 'Play', 'Open Sans', sans-serif; }
 h1 { font-size: 22px; }
 h2 { font-size: 17px; color: var(--gold); }
 h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 
 .app { display: grid; grid-template-columns: 210px 1fr; min-height: 100vh; }
-.sidebar { background: #070708; border-right: 1px solid var(--line); padding: 18px 0; position: sticky; top: 0; height: 100vh; }
+.sidebar { background: #071316; border-right: 1px solid var(--line); padding: 18px 0; position: sticky; top: 0; height: 100vh; }
 .brand { padding: 0 18px 18px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
 .brand .suit { color: var(--red); font-size: 26px; line-height: 1; }
-.brand .name { font-weight: 700; font-size: 18px; letter-spacing: 0.12em; }
-.brand .sub { color: var(--gold); font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; }
+.brand .name { font-family: 'Play', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 0.14em; color: var(--gold); }
+.brand .sub { color: var(--cyan); font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; }
 .nav a { display: block; padding: 9px 18px; color: var(--text); border-left: 3px solid transparent; }
 .nav a:hover { background: var(--panel); text-decoration: none; }
 .nav a.active { border-left-color: var(--red); background: var(--panel); color: var(--gold); }
@@ -60,14 +62,14 @@ button, .btn {
 button:hover:not(:disabled) { border-color: var(--gold); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
-button.primary:hover:not(:disabled) { background: #e01535; }
+button.primary:hover:not(:disabled) { background: #e00000; }
 button.gold { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
 button.danger { color: #ff8a8a; }
 button.link { background: none; border: none; color: var(--gold); padding: 0 4px; }
 button.small { padding: 2px 8px; font-size: 12px; }
 
 input, select, textarea {
-  background: #0f0f12; color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+  background: #081517; color: var(--text); border: 1px solid var(--line); border-radius: 6px;
   padding: 6px 8px; font: inherit;
 }
 input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold); }
@@ -79,7 +81,7 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; 
 table { width: 100%; border-collapse: collapse; }
 th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-tr:hover td { background: #1a1a1f; }
+tr:hover td { background: #122b31; }
 
 .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; border: 1px solid var(--line); white-space: nowrap; }
 .pill.Light { color: var(--light); border-color: var(--light); }

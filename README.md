@@ -18,7 +18,7 @@ which builds to run, and who drops in what on each map, with tournament rules ch
 - **Auto-fill** suggests a legal lineup from attending pilots' hangars and preferences. Everything stays editable by hand.
 - **Sharing.** Live view for everyone, Discord-formatted copy/paste, CSV export for Google Sheets.
 - **History.** Results per drop with win rates by pilot, chassis and map.
-- **Mech catalog** of every MWO chassis and variant (IS and Clan, hero, omni), editable in the app for new
+- **Mech catalog** of all 1,296 MWO variants from nav-alpha MechDB (IS and Clan, heroes, champions, specials, Legendaries), editable in the app for new
   releases and Legendary flags.
 
 ## Running it
@@ -36,7 +36,8 @@ To use the shared database, follow [SETUP.md](SETUP.md).
 
 | Path | What |
 | --- | --- |
-| `src/data/catalog.js` | Built-in mech catalog and default map list |
+| `src/data/catalog-data.js` | Mech catalog generated from nav-alpha MechDB (`scripts/import-nav-alpha.mjs` refreshes it) |
+| `src/data/catalog.js` | Weight classes and default map list |
 | `src/lib/mechs.js` | Catalog merge, variant lookup, mwomercs paste parser |
 | `src/lib/rules.js` | Ruleset model and lineup validation |
 | `src/lib/autofill.js` | Lineup suggestion |

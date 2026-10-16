@@ -23,6 +23,13 @@ describe('catalog', () => {
     expect(lookupVariant(c, 'AS7-D').kind).toBe('legendary');
   });
 
+  it('knows heroes by name and short code, and Legendaries', () => {
+    expect(lookupVariant(catalog, 'RVN-H')).toMatchObject({ code: 'HUGINN', chassis: 'Raven', kind: 'hero' });
+    expect(lookupVariant(catalog, 'AS7-S(L)').kind).toBe('legendary');
+    expect(lookupVariant(catalog, 'CN9-YLW2(LGD)').kind).toBe('legendary');
+    expect(lookupVariant(catalog, 'SD1-O')).toMatchObject({ chassis: 'Sunder', tons: 90 });
+  });
+
   it('resolves special suffix variants', () => {
     expect(lookupVariant(catalog, 'AS7-D(F)')).toMatchObject({ chassis: 'Atlas', tons: 100, kind: 'special' });
     expect(lookupVariant(catalog, 'SDR-5K (C)')).toMatchObject({ chassis: 'Spider', kind: 'champion' });
@@ -31,9 +38,9 @@ describe('catalog', () => {
 
 describe('paste parser', () => {
   it('finds codes in messy text and reports unknown ones', () => {
-    const text = `MECH STATS\nAtlas AS7-D 120 matches\nTimber Wolf TBR-Prime\nKDK-3, ZZZ-9X\nAS7-D(F) 3 matches\nDate 2026-10-15`;
+    const text = `MECH STATS\nAtlas AS7-D 120 matches\nTimber Wolf TBR-Prime\nKDK-3, ZZZ-9X\nAS7-D(F) 3 matches\nHuginn 4\nThe Boar's Head\nGrid Iron Ltd\nDate 2026-10-15`;
     const { found, unknown } = parseMechPaste(text, catalog);
-    expect(found.map((f) => f.code).sort()).toEqual(['AS7-D', 'AS7-D(F)', 'KDK-3', 'TBR-PRIME']);
+    expect(found.map((f) => f.code).sort()).toEqual(['AS7-D', 'AS7-D(F)', 'GRID IRON LTD', 'HUGINN', 'KDK-3', 'TBR-PRIME', "THE BOAR'S HEAD"]);
     expect(unknown).toContain('ZZZ-9X');
     expect(unknown).not.toContain('2026-10-15');
   });
