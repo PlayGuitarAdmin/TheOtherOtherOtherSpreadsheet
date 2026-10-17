@@ -46,7 +46,8 @@ const SUFFIX = /^(.*?)\s?\(([A-Z0-9]{1,4})\)$/;
 // Look up a variant code. Special variants like "AS7-D(F)" resolve to their base
 // variant's chassis and tonnage, with kind "champion" for (C), "loyalty" for (L), "legendary" for (LGD) and "special" otherwise.
 export function lookupVariant(catalog, rawCode) {
-  if (!rawCode) return null;
+  // Real codes are under 20 characters; capping the length keeps junk hangar rows from stalling the regexes below.
+  if (!rawCode || String(rawCode).length > 40) return null;
   const code = String(rawCode).toUpperCase().replace(/\s+\(/, '(').trim();
   const exact = catalog.byCode.get(code) || catalog.byCode.get(catalog.aliases?.get(code));
   if (exact) return exact;

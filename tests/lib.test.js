@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_VARIANTS, classesInText } from '../src/data/catalog.js';
 import { assignPilots, dropsPlayed } from '../src/lib/autofill.js';
+import { discordText, toCsv } from '../src/lib/export.js';
 import { buildCatalog, lookupVariant, parseMechPaste, sortSlots } from '../src/lib/mechs.js';
 import { grimBuildsFor, indexGrimBuilds, parseGrimMechs } from '../src/lib/grimmechs.js';
 import { emptyRules, validateLineup } from '../src/lib/rules.js';
@@ -274,5 +275,31 @@ describe('drop templates', () => {
     expect(d.slots.map((s) => s.pilotId)).toEqual([null, null]);
     expect(dropFromTemplate({ map_id: 'gone', slots }, event, 0, new Set()).map_id).toBe(null);
     expect(templateSummary({ slots: [...slots, { chassis: 'Atlas' }, {}] })).toBe('2× Atlas, Timber Wolf, 1 open');
+  });
+});
+
+describe('security hardening', () => {
+  const ctx = {
+    catalog,
+    pilotsById: { p: { name: '```\n@everyone' } },
+    mapsById: {},
+    buildsById: { b: { name: 'x\n```\n@everyone click [here](https://evil.example)' } },
+  };
+
+  it('neutralises spreadsheet formulas in CSV cells', () => {
+    expect(toCsv([['=HYPERLINK("https://evil")', '+1', '-x', '@a', 'Hammer', 42]])).toBe(`"'=HYPERLINK(""https://evil"")",'+1,'-x,'@a,Hammer,42`);
+  });
+
+  it('keeps names from breaking out of the Discord code block or pinging people', () => {
+    const text = discordText({ event: { name: 'E' }, drops: [{ slots: [{ pilotId: 'p', chassis: 'Atlas', buildId: 'b' }] }], ctx });
+    expect(text.match(/```/g)).toHaveLength(2);
+    expect(text).not.toMatch(/@everyone/);
+    expect(text.split('\n')).toHaveLength(6);
+  });
+
+  it('ignores absurdly long variant codes quickly', () => {
+    const t = Date.now();
+    expect(lookupVariant(catalog, `${' '.repeat(200000)}X`)).toBe(null);
+    expect(Date.now() - t).toBeLessThan(100);
   });
 });

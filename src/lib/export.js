@@ -11,8 +11,12 @@ export function slotBuild(slot, buildsById) {
   return b ? { name: b.name, link: b.link || '', title: b.notes || b.name } : null;
 }
 
+// Names come from anyone who can edit pilots, builds and mechs. Keep them on one line, stop them closing the
+// code block (backticks) and stop them pinging people (@everyone, <@id>) when a captain pastes the text.
+const discordSafe = (s) => String(s ?? '').replace(/[\r\n\t]+/g, ' ').replace(/`/g, "'").replace(/@/g, '@\u200b');
+
 const pad = (s, n) => {
-  const str = String(s ?? '');
+  const str = discordSafe(s);
   return str.length > n ? `${str.slice(0, n - 1)}…` : str.padEnd(n);
 };
 
@@ -31,14 +35,14 @@ export function discordText({ event, drops, ctx }) {
     let lastLance = null;
     slots.forEach((s, idx) => {
       if (s.lance && s.lance !== lastLance) {
-        out.push(`-- ${s.lance} --`);
+        out.push(`-- ${discordSafe(s.lance).slice(0, 30)} --`);
         lastLance = s.lance;
       }
       const m = slotMech(catalog, s);
       const pilot = pilotsById[s.pilotId]?.name || '(open)';
       const mech = m ? m.code || m.chassis : '-';
       const tons = m ? `${m.tons}t ${m.wclass[0]}` : '';
-      const build = slotBuild(s, buildsById)?.name || '';
+      const build = discordSafe(slotBuild(s, buildsById)?.name).slice(0, 40);
       out.push(`${String(idx + 1).padStart(2)} ${pad(pilot, 16)} ${pad(mech, 14)} ${pad(tons, 7)} ${build}`.trimEnd());
     });
     out.push('```');
@@ -47,9 +51,11 @@ export function discordText({ event, drops, ctx }) {
   return out.join('\n');
 }
 
+// A text cell starting with = + - @ (or tab/CR) would run as a formula in Google Sheets or Excel, so it gets a leading '.
 const csvCell = (v) => {
-  const s = String(v ?? '');
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  let s = String(v ?? '');
+  if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
 export function toCsv(rows) {
